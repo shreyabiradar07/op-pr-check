@@ -80,8 +80,12 @@ rules:
   resources:
   - pods
   verbs:
+  - create
+  - delete
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - ""
@@ -228,8 +232,12 @@ rules:
   resources:
   - pods
   verbs:
+  - create
+  - delete
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - monitoring.coreos.com

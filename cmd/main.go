@@ -37,6 +37,7 @@ import (
 	mydomainv1alpha1 "github.com/kruize/kruize-operator/api/v1alpha1"
 	"github.com/kruize/kruize-operator/internal/controller"
 	//+kubebuilder:scaffold:imports
+	routev1 "github.com/openshift/api/route/v1"
 )
 
 var (
@@ -49,6 +50,7 @@ func init() {
 
 	utilruntime.Must(mydomainv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
+	utilruntime.Must(routev1.AddToScheme(scheme))
 }
 
 func main() {
