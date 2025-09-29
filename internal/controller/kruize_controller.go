@@ -43,6 +43,8 @@ import (
 	mydomainv1alpha1 "github.com/kruize/kruize-operator/api/v1alpha1"
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
+    "github.com/kruize/kruize-operator/internal/utils"
+    "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // KruizeReconciler reconciles a Kruize object
@@ -55,7 +57,7 @@ type KruizeReconciler struct {
 //+kubebuilder:rbac:groups=my.domain,resources=kruizes/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=my.domain,resources=kruizes/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
-//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
+//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=persistentvolumes,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
@@ -91,7 +93,7 @@ type KruizeReconciler struct {
 //+kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheusrules,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=endpoints,verbs=get;list;watch
 //+kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
-//+kubebuilder:rbac:groups=metrics.k8s.io,resources=pods,verbs=get;list;watch
+//+kubebuilder:rbac:groups=metrics.k8s.io,resources=pods,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=metrics.k8s.io,resources=nodes,verbs=get;list;watch
 //+kubebuilder:rbac:groups=autoscaling.k8s.io,resources=verticalpodautoscalers,verbs=get;list;watch;create;update;patch;delete
 
@@ -143,7 +145,7 @@ func (r *KruizeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	err = r.waitForKruizePods(ctx, targetNamespace, 5*time.Minute)
 	if err != nil {
 		logger.Error(err, "Kruize pods not ready yet")
-		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, err
 	}
 
 	logger.Info("All Kruize pods are ready!", "namespace", targetNamespace)
@@ -264,16 +266,16 @@ func (r *KruizeReconciler) deployKruize(ctx context.Context, kruize *mydomainv1a
 	}
 
 	// Deploy the Kruize components directly
-	err := r.deployKruizeComponents(ctx, autotune_ns, cluster_type)
+	err := r.deployKruizeComponents(ctx, autotune_ns, cluster_type, kruize)
 	if err != nil {
-		return fmt.Errorf("failed to deploy Kruize components: %v", err)
+		return fmt.Errorf("Failed to deploy Kruize components: %v", err)
 	}
 
 	fmt.Printf("Successfully deployed Kruize components to namespace: %s\n", autotune_ns)
 	return nil
 }
 
-func (r *KruizeReconciler) deployKruizeComponents(ctx context.Context, namespace string, clusterType string) error {
+func (r *KruizeReconciler) deployKruizeComponents(ctx context.Context, namespace string, clusterType string, kruize *mydomainv1alpha1.Kruize) error {
 
 	logger := log.FromContext(ctx)
 
@@ -295,53 +297,87 @@ func (r *KruizeReconciler) deployKruizeComponents(ctx context.Context, namespace
 		return nil
 	}
 
-    // Deploy RBAC and ConfigMap
-    rbacAndConfigManifest := r.generateKruizeRBACAndConfigManifest(namespace, clusterType)
-    err := r.applyYAMLString(ctx, rbacAndConfigManifest, namespace)
-    if err != nil {
-        return fmt.Errorf("failed to deploy Kruize RBAC and Config: %v", err)
+    k8sObjectGenerator := utils.NewKruizeResourceGenerator(
+    namespace,
+    kruize.Spec.Autotune_image,
+    kruize.Spec.Autotune_ui_image,
+    )
+
+    // Reconcile Namespace FIRST (no owner reference)
+    kruizeNamespace := k8sObjectGenerator.KruizeNamespace()
+    if err := r.reconcileClusterResource(ctx, kruizeNamespace); err != nil {
+      logger.Error(err, "Failed to reconcile Namespace")
+      return err
     }
 
-    // Wait for RBAC to propagate
-    fmt.Println("Waiting for RBAC to propagate...")
-    time.Sleep(30 * time.Second)
+    kruizeServiceAccount := k8sObjectGenerator.KruizeServiceAccount()
 
-	// Deploy Kruize DB (using emptyDir to avoid OpenShift permission issues)
-	kruizeDBManifest := r.generateKruizeDBManifest(namespace)
-	err = r.applyYAMLString(ctx, kruizeDBManifest, namespace)
-	if err != nil {
-		return fmt.Errorf("failed to deploy Kruize DB: %v", err)
-	}
+    if err := r.reconcileClusterResource(ctx, kruizeServiceAccount); err != nil {
+      logger.Error(err, "Failed to reconcile kruize service account")
+      return err
+    }
 
-	// Wait for DB to initialize
-	fmt.Println("Waiting for database to initialize...")
-	time.Sleep(90 * time.Second)
+    // Reconcile cluster-scoped resources (no owner reference)
+    clusterScopedObjects := k8sObjectGenerator.ClusterScopedResources()
+    for _, obj := range clusterScopedObjects {
+      if err := r.reconcileClusterResource(ctx, obj); err != nil {
+          logger.Error(err, "Failed to reconcile cluster-scoped resource", "Kind", obj.GetObjectKind().GroupVersionKind().Kind, "Name", obj.GetName())
+          return err
+      }
+    }
 
+    configmap := k8sObjectGenerator.KruizeConfigMap()
+    if err := r.reconcileClusterResource(ctx, configmap); err != nil {
+      logger.Error(err, "Failed to reconcile configmap")
+      return err
+    }
 
-	// Deploy Kruize main component
-	kruizeDeploymentManifest := r.generateKruizeDeploymentManifest(namespace)
-	err = r.applyYAMLString(ctx, kruizeDeploymentManifest, namespace)
-	if err != nil {
-		return fmt.Errorf("failed to deploy Kruize Deployment: %v", err)
-	}
+    // Reconcile namespace-scoped resources (WITH owner reference)
+    namespacedObjects := k8sObjectGenerator.NamespacedResources()
+    for _, obj := range namespacedObjects {
+      if err := r.reconcileNamespacedResource(ctx, kruize, obj); err != nil {
+          logger.Error(err, "Failed to reconcile namespaced resource", "Kind", obj.GetObjectKind().GroupVersionKind().Kind, "Name", obj.GetName())
+          return err
+      }
+    }
 
-	// Deploy Kruize UI
-	kruizeUIManifest := r.generateKruizeUIManifest(namespace)
-	err = r.applyYAMLString(ctx, kruizeUIManifest, namespace)
-	if err != nil {
-		return fmt.Errorf("failed to deploy Kruize UI: %v", err)
-	}
+    logger.Info("Successfully reconciled all dependent resources")
+    return nil
+}
 
-	// Deploy OpenShift routes if on OpenShift
-	if clusterType == "openshift" {
-		routesManifest := r.generateKruizeRoutesManifest(namespace)
-		err = r.applyYAMLString(ctx, routesManifest, namespace)
-		if err != nil {
-			return fmt.Errorf("failed to deploy Kruize routes: %v", err)
-		}
-	}
+// Helper for cluster scoped resources that don't get an owner reference
+func (r *KruizeReconciler) reconcileClusterResource(ctx context.Context, obj client.Object) error {
+    log := log.FromContext(ctx)
+    found := obj.DeepCopyObject().(client.Object)
+    err := r.Get(ctx, client.ObjectKeyFromObject(obj), found)
+    if err != nil {
+        if errors.IsNotFound(err) {
+            log.Info("Creating new cluster-scoped resource", "Kind", obj.GetObjectKind().GroupVersionKind().Kind, "Name", obj.GetName())
+            return r.Create(ctx, obj)
+        }
+        return fmt.Errorf("Failed to get cluster-scoped resource %s %s: %w", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err)
+    }
+    return nil
+}
 
-	return nil
+// Helper for namespace scoped resources that get an owner reference
+func (r *KruizeReconciler) reconcileNamespacedResource(ctx context.Context, owner v1.Object, obj client.Object) error {
+    log := log.FromContext(ctx)
+    // Set the owner reference
+    if err := controllerutil.SetControllerReference(owner, obj, r.Scheme); err != nil {
+        return fmt.Errorf("Failed to set owner reference on %s %s: %w", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err)
+    }
+
+    found := obj.DeepCopyObject().(client.Object)
+    err := r.Get(ctx, client.ObjectKeyFromObject(obj), found)
+    if err != nil {
+        if errors.IsNotFound(err) {
+            log.Info("Creating new namespace scoped resource", "Kind", obj.GetObjectKind().GroupVersionKind().Kind, "Name", obj.GetName())
+            return r.Create(ctx, obj)
+        }
+        return fmt.Errorf("Failed to get namespace scoped resource %s %s: %w", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err)
+    }
+    return nil
 }
 
 func (r *KruizeReconciler) generateKruizeRBACAndConfigManifest(namespace string, clusterType string) string {

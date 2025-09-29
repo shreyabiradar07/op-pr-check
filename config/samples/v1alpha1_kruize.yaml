@@ -8,7 +8,9 @@ metadata:
 spec:
   cluster_type: "openshift"
   size: 3
+  autotune_image: "quay.io/kruize/autotune_operator:0.7"
   autotune_version: "0.2"
+  autotune_ui_image: "quay.io/kruize/kruize-ui:0.0.9"
   autotune_ui_version: "0.0.9"
   non_interactive: 1
   use_yaml_build: 0	

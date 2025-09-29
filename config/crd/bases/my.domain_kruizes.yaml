@@ -41,6 +41,10 @@ spec:
             properties:
               autotune_configmaps:
                 type: string
+              autotune_image:
+                type: string
+              autotune_ui_image:
+                type: string
               autotune_ui_version:
                 type: string
               autotune_version:
@@ -62,6 +66,8 @@ spec:
                 type: integer
             required:
             - autotune_configmaps
+            - autotune_image
+            - autotune_ui_image
             - autotune_ui_version
             - autotune_version
             - cluster_type
