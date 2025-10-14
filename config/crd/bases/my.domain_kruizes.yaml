@@ -45,10 +45,6 @@ spec:
                 type: string
               autotune_ui_image:
                 type: string
-              autotune_ui_version:
-                type: string
-              autotune_version:
-                type: string
               cluster_type:
                 type: string
               namespace:
@@ -68,8 +64,6 @@ spec:
             - autotune_configmaps
             - autotune_image
             - autotune_ui_image
-            - autotune_ui_version
-            - autotune_version
             - cluster_type
             - namespace
             - non_interactive

@@ -32,9 +32,7 @@ type KruizeSpec struct {
 	Size                int32  `json:"size"`
 	Cluster_type        string `json:"cluster_type"`
 	Autotune_image      string  `json:"autotune_image"`
-	Autotune_version    string `json:"autotune_version"`
 	Autotune_ui_image   string `json:"autotune_ui_image"`
-	Autotune_ui_version string `json:"autotune_ui_version"`
 	Autotune_configmaps string `json:"autotune_configmaps"`
 	Non_interactive     int32  `json:"non_interactive"`
 	Use_yaml_build      int32  `json:"use_yaml_build"`
