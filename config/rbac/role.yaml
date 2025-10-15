@@ -10,11 +10,8 @@ rules:
   - configmaps
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - ""
@@ -37,11 +34,8 @@ rules:
   - namespaces
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - ""
@@ -57,11 +51,8 @@ rules:
   - persistentvolumeclaims
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - ""
@@ -69,11 +60,8 @@ rules:
   - persistentvolumes
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - ""
@@ -102,11 +90,8 @@ rules:
   - serviceaccounts
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - ""
@@ -114,11 +99,8 @@ rules:
   - services
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - apiextensions.k8s.io
@@ -150,11 +132,8 @@ rules:
   - deployments
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - apps
@@ -230,11 +209,8 @@ rules:
   - pods
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - monitoring.coreos.com
@@ -242,8 +218,11 @@ rules:
   - alertmanagers
   verbs:
   - create
+  - delete
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - monitoring.coreos.com
@@ -299,11 +278,8 @@ rules:
   - kruizes
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - my.domain
@@ -337,11 +313,8 @@ rules:
   - clusterrolebindings
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - rbac.authorization.k8s.io
@@ -349,11 +322,8 @@ rules:
   - clusterroles
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - rbac.authorization.k8s.io
@@ -385,11 +355,8 @@ rules:
   - routes
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - security.openshift.io
