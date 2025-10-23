@@ -78,11 +78,8 @@ rules:
   - secrets
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - ""
@@ -108,11 +105,8 @@ rules:
   - customresourcedefinitions
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - apps
@@ -120,11 +114,8 @@ rules:
   - daemonsets
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - apps
@@ -141,11 +132,8 @@ rules:
   - statefulsets
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - autoscaling.k8s.io
@@ -153,11 +141,8 @@ rules:
   - verticalpodautoscalers
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - batch
@@ -165,11 +150,8 @@ rules:
   - cronjobs
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - batch
@@ -177,11 +159,8 @@ rules:
   - jobs
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - extensions
@@ -189,11 +168,8 @@ rules:
   - ingresses
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - metrics.k8s.io
@@ -218,11 +194,8 @@ rules:
   - alertmanagers
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - monitoring.coreos.com
@@ -230,11 +203,8 @@ rules:
   - prometheuses
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - monitoring.coreos.com
@@ -242,11 +212,8 @@ rules:
   - prometheuses/api
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - monitoring.coreos.com
@@ -254,11 +221,8 @@ rules:
   - prometheusrules
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - monitoring.coreos.com
@@ -266,11 +230,8 @@ rules:
   - servicemonitors
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - my.domain
@@ -301,11 +262,8 @@ rules:
   - ingresses
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - rbac.authorization.k8s.io
@@ -331,11 +289,8 @@ rules:
   - rolebindings
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - rbac.authorization.k8s.io
@@ -343,11 +298,8 @@ rules:
   - roles
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - route.openshift.io
@@ -364,11 +316,8 @@ rules:
   - securitycontextconstraints
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - use
   - watch
 - apiGroups:
@@ -377,9 +326,6 @@ rules:
   - storageclasses
   verbs:
   - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
