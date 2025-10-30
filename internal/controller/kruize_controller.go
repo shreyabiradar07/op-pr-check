@@ -42,7 +42,7 @@ import (
 
 	mydomainv1alpha1 "github.com/kruize/kruize-operator/api/v1alpha1"
 
-	"sigs.k8s.io/controller-runtime/pkg/log"
+    "sigs.k8s.io/controller-runtime/pkg/log"
     "github.com/kruize/kruize-operator/internal/utils"
     "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -63,36 +63,36 @@ type KruizeReconciler struct {
 //+kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;create
 //+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;list;watch;create
+//+kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;create
+//+kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;create
+//+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;create
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;create
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=extensions,resources=ingresses,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,verbs=get;list;watch;create;use
-//+kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch;create
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=get;create
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;create
+//+kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;create
+//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=get;create
+//+kubebuilder:rbac:groups=extensions,resources=ingresses,verbs=get;create
+//+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;create
+//+kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,verbs=get;create;use
+//+kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;create
 //+kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheuses,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheuses/api,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=alertmanagers,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheusrules,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups="",resources=endpoints,verbs=get;list;watch
-//+kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
+//+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create
+//+kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;create
+//+kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;create
+//+kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;create
+//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheuses,verbs=get;create
+//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheuses/api,verbs=get;create
+//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=alertmanagers,verbs=get;create
+//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheusrules,verbs=get;create
+//+kubebuilder:rbac:groups="",resources=endpoints,verbs=get;
+//+kubebuilder:rbac:groups="",resources=nodes,verbs=get;
 //+kubebuilder:rbac:groups=metrics.k8s.io,resources=pods,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=metrics.k8s.io,resources=nodes,verbs=get;list;watch
-//+kubebuilder:rbac:groups=autoscaling.k8s.io,resources=verticalpodautoscalers,verbs=get;list;watch;create
+//+kubebuilder:rbac:groups=metrics.k8s.io,resources=nodes,verbs=get;
+//+kubebuilder:rbac:groups=autoscaling.k8s.io,resources=verticalpodautoscalers,verbs=get;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -287,88 +287,87 @@ func (r *KruizeReconciler) deployKruizeComponents(ctx context.Context, namespace
 	}
 
     k8sObjectGenerator := utils.NewKruizeResourceGenerator(
-    namespace,
-    kruize.Spec.Autotune_image,
-    kruize.Spec.Autotune_ui_image,
+        namespace,
+        kruize.Spec.Autotune_image,
+        kruize.Spec.Autotune_ui_image,
     )
 
-    // Reconcile Namespace FIRST (no owner reference)
-    kruizeNamespace := k8sObjectGenerator.KruizeNamespace()
-    if err := r.reconcileClusterResource(ctx, kruizeNamespace); err != nil {
-      logger.Error(err, "Failed to reconcile Namespace")
-      return err
-    }
+	// Reconcile Namespace FIRST (no owner reference)
+	kruizeNamespace := k8sObjectGenerator.KruizeNamespace()
+	if err := r.reconcileClusterResource(ctx, kruizeNamespace); err != nil {
+		logger.Error(err, "Failed to reconcile Namespace")
+		return err
+	}
 
-    kruizeServiceAccount := k8sObjectGenerator.KruizeServiceAccount()
+	kruizeServiceAccount := k8sObjectGenerator.KruizeServiceAccount()
 
-    if err := r.reconcileClusterResource(ctx, kruizeServiceAccount); err != nil {
-      logger.Error(err, "Failed to reconcile kruize service account")
-      return err
-    }
+	if err := r.reconcileClusterResource(ctx, kruizeServiceAccount); err != nil {
+		logger.Error(err, "Failed to reconcile kruize service account")
+		return err
+	}
 
-    // Reconcile cluster-scoped resources (no owner reference)
-    clusterScopedObjects := k8sObjectGenerator.ClusterScopedResources()
-    for _, obj := range clusterScopedObjects {
-      if err := r.reconcileClusterResource(ctx, obj); err != nil {
-          logger.Error(err, "Failed to reconcile cluster-scoped resource", "Kind", obj.GetObjectKind().GroupVersionKind().Kind, "Name", obj.GetName())
-          return err
-      }
-    }
+	// Reconcile cluster-scoped resources (no owner reference)
+	clusterScopedObjects := k8sObjectGenerator.ClusterScopedResources()
+	for _, obj := range clusterScopedObjects {
+		if err := r.reconcileClusterResource(ctx, obj); err != nil {
+			logger.Error(err, "Failed to reconcile cluster-scoped resource", "Kind", obj.GetObjectKind().GroupVersionKind().Kind, "Name", obj.GetName())
+			return err
+		}
+	}
 
-    configmap := k8sObjectGenerator.KruizeConfigMap()
-    if err := r.reconcileClusterResource(ctx, configmap); err != nil {
-      logger.Error(err, "Failed to reconcile configmap")
-      return err
-    }
+	configmap := k8sObjectGenerator.KruizeConfigMap()
+	if err := r.reconcileClusterResource(ctx, configmap); err != nil {
+		logger.Error(err, "Failed to reconcile configmap")
+		return err
+	}
 
-    // Reconcile namespace-scoped resources (WITH owner reference)
-    namespacedObjects := k8sObjectGenerator.NamespacedResources()
-    for _, obj := range namespacedObjects {
-      if err := r.reconcileNamespacedResource(ctx, kruize, obj); err != nil {
-          logger.Error(err, "Failed to reconcile namespaced resource", "Kind", obj.GetObjectKind().GroupVersionKind().Kind, "Name", obj.GetName())
-          return err
-      }
-    }
+	// Reconcile namespace-scoped resources (WITH owner reference)
+	namespacedObjects := k8sObjectGenerator.NamespacedResources()
+	for _, obj := range namespacedObjects {
+		if err := r.reconcileNamespacedResource(ctx, kruize, obj); err != nil {
+			logger.Error(err, "Failed to reconcile namespaced resource", "Kind", obj.GetObjectKind().GroupVersionKind().Kind, "Name", obj.GetName())
+			return err
+		}
+	}
 
-    logger.Info("Successfully reconciled all dependent resources")
-    return nil
+	logger.Info("Successfully reconciled all dependent resources")
+	return nil
 }
 
 // Helper for cluster scoped resources that don't get an owner reference
 func (r *KruizeReconciler) reconcileClusterResource(ctx context.Context, obj client.Object) error {
-    log := log.FromContext(ctx)
-    found := obj.DeepCopyObject().(client.Object)
-    err := r.Get(ctx, client.ObjectKeyFromObject(obj), found)
-    if err != nil {
-        if errors.IsNotFound(err) {
-            log.Info("Creating new cluster-scoped resource", "Kind", obj.GetObjectKind().GroupVersionKind().Kind, "Name", obj.GetName())
-            return r.Create(ctx, obj)
-        }
-        return fmt.Errorf("Failed to get cluster-scoped resource %s %s: %w", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err)
-    }
-    return nil
+	log := log.FromContext(ctx)
+	found := obj.DeepCopyObject().(client.Object)
+	err := r.Get(ctx, client.ObjectKeyFromObject(obj), found)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			log.Info("Creating new cluster-scoped resource", "Kind", obj.GetObjectKind().GroupVersionKind().Kind, "Name", obj.GetName())
+			return r.Create(ctx, obj)
+		}
+		return fmt.Errorf("Failed to get cluster-scoped resource %s %s: %w", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err)
+	}
+	return nil
 }
 
 // Helper for namespace scoped resources that get an owner reference
 func (r *KruizeReconciler) reconcileNamespacedResource(ctx context.Context, owner v1.Object, obj client.Object) error {
-    log := log.FromContext(ctx)
-    // Set the owner reference
-    if err := controllerutil.SetControllerReference(owner, obj, r.Scheme); err != nil {
-        return fmt.Errorf("Failed to set owner reference on %s %s: %w", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err)
-    }
+	log := log.FromContext(ctx)
+	// Set the owner reference
+	if err := controllerutil.SetControllerReference(owner, obj, r.Scheme); err != nil {
+		return fmt.Errorf("Failed to set owner reference on %s %s: %w", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err)
+	}
 
-    found := obj.DeepCopyObject().(client.Object)
-    err := r.Get(ctx, client.ObjectKeyFromObject(obj), found)
-    if err != nil {
-        if errors.IsNotFound(err) {
-            log.Info("Creating new namespace scoped resource", "Kind", obj.GetObjectKind().GroupVersionKind().Kind, "Name", obj.GetName())
-            return r.Create(ctx, obj)
-        }
-        return fmt.Errorf("Failed to get namespace scoped resource %s %s: %w", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err)
-    }
-    return nil
+	found := obj.DeepCopyObject().(client.Object)
+	err := r.Get(ctx, client.ObjectKeyFromObject(obj), found)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			log.Info("Creating new namespace scoped resource", "Kind", obj.GetObjectKind().GroupVersionKind().Kind, "Name", obj.GetName())
+			return r.Create(ctx, obj)
+		}
+		return fmt.Errorf("Failed to get namespace scoped resource %s %s: %w", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err)
+	}
+	return nil
 }
-
 
 func (r *KruizeReconciler) applyYAMLString(ctx context.Context, yamlContent string, namespace string) error {
 	fmt.Printf("Applying YAML content (size: %d bytes) to namespace: %s\n", len(yamlContent), namespace)
