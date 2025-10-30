@@ -92,7 +92,7 @@ type KruizeReconciler struct {
 //+kubebuilder:rbac:groups="",resources=nodes,verbs=get;
 //+kubebuilder:rbac:groups=metrics.k8s.io,resources=pods,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=metrics.k8s.io,resources=nodes,verbs=get;
-//+kubebuilder:rbac:groups=autoscaling.k8s.io,resources=verticalpodautoscalers,verbs=get;create;update;patch;delete
+//+kubebuilder:rbac:groups=autoscaling.k8s.io,resources=verticalpodautoscalers,verbs=get;create;
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
