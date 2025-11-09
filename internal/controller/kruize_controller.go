@@ -69,30 +69,30 @@ type KruizeReconciler struct {
 //+kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;create
 //+kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;create
 //+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;create
-//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;create
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=get;create
-//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;create
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;create
-//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=get;create
-//+kubebuilder:rbac:groups=extensions,resources=ingresses,verbs=get;create
-//+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;create
+//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=get;list;watch;create
+//+kubebuilder:rbac:groups=extensions,resources=ingresses,verbs=get;list;watch;create
+//+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,verbs=get;create;use
 //+kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;create
 //+kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create
-//+kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;create
-//+kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;create
+//+kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create
+//+kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;create
-//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheuses,verbs=get;create
-//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheuses/api,verbs=get;create
-//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=alertmanagers,verbs=get;create
+//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheuses,verbs=get;list;watch;create
+//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheuses/api,verbs=get;create;update
+//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=alertmanagers,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheusrules,verbs=get;create
-//+kubebuilder:rbac:groups="",resources=endpoints,verbs=get;
-//+kubebuilder:rbac:groups="",resources=nodes,verbs=get;
+//+kubebuilder:rbac:groups="",resources=endpoints,verbs=get;list;watch
+//+kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
 //+kubebuilder:rbac:groups=metrics.k8s.io,resources=pods,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=metrics.k8s.io,resources=nodes,verbs=get;
-//+kubebuilder:rbac:groups=autoscaling.k8s.io,resources=verticalpodautoscalers,verbs=get;create;
+//+kubebuilder:rbac:groups=metrics.k8s.io,resources=nodes,verbs=get;list;
+//+kubebuilder:rbac:groups=autoscaling.k8s.io,resources=verticalpodautoscalers,verbs=get;list;watch;create;update;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.

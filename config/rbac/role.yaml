@@ -19,6 +19,8 @@ rules:
   - endpoints
   verbs:
   - get
+  - list
+  - watch
 - apiGroups:
   - ""
   resources:
@@ -41,6 +43,8 @@ rules:
   - nodes
   verbs:
   - get
+  - list
+  - watch
 - apiGroups:
   - ""
   resources:
@@ -107,6 +111,8 @@ rules:
   verbs:
   - create
   - get
+  - list
+  - watch
 - apiGroups:
   - apps
   resources:
@@ -123,6 +129,8 @@ rules:
   verbs:
   - create
   - get
+  - list
+  - watch
 - apiGroups:
   - autoscaling.k8s.io
   resources:
@@ -130,6 +138,10 @@ rules:
   verbs:
   - create
   - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - batch
   resources:
@@ -151,12 +163,15 @@ rules:
   verbs:
   - create
   - get
+  - list
+  - watch
 - apiGroups:
   - metrics.k8s.io
   resources:
   - nodes
   verbs:
   - get
+  - list
 - apiGroups:
   - metrics.k8s.io
   resources:
@@ -173,6 +188,8 @@ rules:
   verbs:
   - create
   - get
+  - list
+  - watch
 - apiGroups:
   - monitoring.coreos.com
   resources:
@@ -180,6 +197,8 @@ rules:
   verbs:
   - create
   - get
+  - list
+  - watch
 - apiGroups:
   - monitoring.coreos.com
   resources:
@@ -187,6 +206,7 @@ rules:
   verbs:
   - create
   - get
+  - update
 - apiGroups:
   - monitoring.coreos.com
   resources:
@@ -201,6 +221,8 @@ rules:
   verbs:
   - create
   - get
+  - list
+  - watch
 - apiGroups:
   - my.domain
   resources:
@@ -231,6 +253,8 @@ rules:
   verbs:
   - create
   - get
+  - list
+  - watch
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
@@ -247,6 +271,8 @@ rules:
   verbs:
   - create
   - get
+  - list
+  - watch
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
@@ -254,6 +280,8 @@ rules:
   verbs:
   - create
   - get
+  - list
+  - watch
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
