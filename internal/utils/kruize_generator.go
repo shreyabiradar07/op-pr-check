@@ -2,7 +2,9 @@ package utils
 
 import (
 	routev1 "github.com/openshift/api/route/v1"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -16,27 +18,31 @@ func boolPtr(b bool) *bool {
 	return &b
 }
 
-
 // KruizeResourceGenerator holds common data needed for creating resources.
 type KruizeResourceGenerator struct {
-	Namespace string
-	Autotune_image string
+	Namespace         string
+	Autotune_image    string
 	Autotune_ui_image string
+	ClusterType       string // "openshift", "minikube", or "kind"
 }
 
 // NewKruizeResourceGenerator creates a new generator for Kruize resources.
-func NewKruizeResourceGenerator(namespace string, autotuneImage string, autotuneUIImage string) *KruizeResourceGenerator {
+func NewKruizeResourceGenerator(namespace string, autotuneImage string, autotuneUIImage string, clusterType string) *KruizeResourceGenerator {
 	// If no image is provided from the CR, use a sensible default.
 	if autotuneImage == "" {
 		autotuneImage = "quay.io/kruize/autotune_operator:latest"
 	}
-    if autotuneUIImage == "" {
-        autotuneUIImage = "quay.io/kruize/kruize-ui:0.0.9"
-    }
+	if autotuneUIImage == "" {
+		autotuneUIImage = "quay.io/kruize/kruize-ui:0.0.9"
+	}
+	if clusterType == "" {
+		clusterType = "openshift" // Default to openshift for backward compatibility
+	}
 	return &KruizeResourceGenerator{
-		Namespace:   namespace,
-		Autotune_image: autotuneImage,
-		Autotune_ui_image : autotuneUIImage,
+		Namespace:         namespace,
+		Autotune_image:    autotuneImage,
+		Autotune_ui_image: autotuneUIImage,
+		ClusterType:       clusterType,
 	}
 }
 
@@ -121,7 +127,6 @@ func (g *KruizeResourceGenerator) RBACAndConfigResources() []client.Object {
 		g.KruizeConfigMap(),
 	}
 }
-
 
 // kruizeServiceAccount generates the ServiceAccount for Kruize.
 func (g *KruizeResourceGenerator) KruizeNamespace() *corev1.Namespace {
@@ -320,11 +325,11 @@ func (g *KruizeResourceGenerator) kruizeDBPersistentVolume() *corev1.PersistentV
 				corev1.ReadWriteMany,
 			},
 			// The HostPath must be nested inside the PersistentVolumeSource struct.
-            PersistentVolumeSource: corev1.PersistentVolumeSource{
-                HostPath: &corev1.HostPathVolumeSource{
-                    Path: "/mnt/data",
-                },
-            },
+			PersistentVolumeSource: corev1.PersistentVolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/mnt/data",
+				},
+			},
 		},
 	}
 }
@@ -432,8 +437,6 @@ func (g *KruizeResourceGenerator) KruizeConfigMap() *corev1.ConfigMap {
 		},
 	}
 }
-
-
 
 // DBResources generates all resources related to the Kruize Database (PostgreSQL).
 func (g *KruizeResourceGenerator) DBResources() []client.Object {
@@ -568,7 +571,6 @@ func (g *KruizeResourceGenerator) kruizeDBService() *corev1.Service {
 		},
 	}
 }
-
 
 // BackendResources generates the core Kruize application Deployment and Service.
 func (g *KruizeResourceGenerator) BackendResources() []client.Object {
@@ -713,12 +715,11 @@ func (g *KruizeResourceGenerator) kruizeService() *corev1.Service {
 func (g *KruizeResourceGenerator) UIResources() []client.Object {
 	// We will create helpers for the ConfigMap and Service next.
 	return []client.Object{
-	    g.nginxConfigMap(),
-	    g.kruizeUINginxService(),
+		g.nginxConfigMap(),
+		g.kruizeUINginxService(),
 		g.kruizeUINginxPod(),
 	}
 }
-
 
 func (g *KruizeResourceGenerator) kruizeUINginxPod() *corev1.Pod {
 	return &corev1.Pod{
@@ -754,23 +755,23 @@ func (g *KruizeResourceGenerator) kruizeUINginxPod() *corev1.Pod {
 							MountPath: "/etc/nginx/nginx.conf",
 							SubPath:   "nginx.conf",
 						},
-                        {
-                            Name: "nginx-cache",
-                            MountPath: "/var/cache/nginx",
-                        },
-                        {Name: "nginx-pid", MountPath: "/var/run"},
-                        {Name: "nginx-tmp", MountPath: "/tmp"},
+						{
+							Name:      "nginx-cache",
+							MountPath: "/var/cache/nginx",
+						},
+						{Name: "nginx-pid", MountPath: "/var/run"},
+						{Name: "nginx-tmp", MountPath: "/tmp"},
 					},
-                    SecurityContext: &corev1.SecurityContext{
-                        AllowPrivilegeEscalation: boolPtr(false),
-                        RunAsNonRoot: boolPtr(true),
-                        Capabilities: &corev1.Capabilities{
-                            Drop: []corev1.Capability{"ALL"},
-                        },
-                        SeccompProfile: &corev1.SeccompProfile{
-                            Type: corev1.SeccompProfileTypeRuntimeDefault,
-                        },
-                    },
+					SecurityContext: &corev1.SecurityContext{
+						AllowPrivilegeEscalation: boolPtr(false),
+						RunAsNonRoot:             boolPtr(true),
+						Capabilities: &corev1.Capabilities{
+							Drop: []corev1.Capability{"ALL"},
+						},
+						SeccompProfile: &corev1.SeccompProfile{
+							Type: corev1.SeccompProfileTypeRuntimeDefault,
+						},
+					},
 				},
 			},
 			Volumes: []corev1.Volume{
@@ -784,15 +785,15 @@ func (g *KruizeResourceGenerator) kruizeUINginxPod() *corev1.Pod {
 						},
 					},
 				},
-                // Define the emptyDir volume that will be used for caching.
-                {
-                    Name: "nginx-cache",
-                    VolumeSource: corev1.VolumeSource{
-                        EmptyDir: &corev1.EmptyDirVolumeSource{},
-                    },
-                },
-                {Name: "nginx-pid", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
-                {Name: "nginx-tmp", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
+				// Define the emptyDir volume that will be used for caching.
+				{
+					Name: "nginx-cache",
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				},
+				{Name: "nginx-pid", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
+				{Name: "nginx-tmp", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
 			},
 		},
 	}
@@ -864,5 +865,581 @@ func (g *KruizeResourceGenerator) kruizeUINginxService() *corev1.Service {
 				"app": "kruize-ui-nginx",
 			},
 		},
+	}
+}
+
+// ============================================================================
+// Kind/Minikube Resources (from minikube/kind YAML)
+// ============================================================================
+
+// kruizeEditKOClusterRole generates the ClusterRole for editing Kruize resources
+func (g *KruizeResourceGenerator) kruizeEditKOClusterRole() *rbacv1.ClusterRole {
+	return &rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRole",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "kruize-edit-ko",
+		},
+		Rules: []rbacv1.PolicyRule{
+			{APIGroups: []string{"apps"}, Resources: []string{"deployments", "statefulsets", "daemonsets"}, Verbs: []string{"get", "list"}},
+			{APIGroups: []string{"batch"}, Resources: []string{"jobs"}, Verbs: []string{"get", "list"}},
+			{APIGroups: []string{""}, Resources: []string{"namespaces"}, Verbs: []string{"get", "list"}},
+		},
+	}
+}
+
+// kruizeEditKOClusterRoleBinding generates the ClusterRoleBinding for kruize-edit-ko
+func (g *KruizeResourceGenerator) kruizeEditKOClusterRoleBinding() *rbacv1.ClusterRoleBinding {
+	return &rbacv1.ClusterRoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "kruize-edit-ko-binding",
+		},
+		Subjects: []rbacv1.Subject{
+			{Kind: "ServiceAccount", Name: "default", Namespace: g.Namespace},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     "kruize-edit-ko",
+		},
+	}
+}
+
+// instaslicesAccessClusterRole generates the ClusterRole for instaslices access
+func (g *KruizeResourceGenerator) instaslicesAccessClusterRole() *rbacv1.ClusterRole {
+	return &rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRole",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "instaslices-access",
+		},
+		Rules: []rbacv1.PolicyRule{
+			{APIGroups: []string{"inference.redhat.com"}, Resources: []string{"instaslices"}, Verbs: []string{"get", "list", "watch"}},
+		},
+	}
+}
+
+// instaslicesAccessClusterRoleBinding generates the ClusterRoleBinding for instaslices access
+func (g *KruizeResourceGenerator) instaslicesAccessClusterRoleBinding() *rbacv1.ClusterRoleBinding {
+	return &rbacv1.ClusterRoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "instaslices-access-binding",
+		},
+		Subjects: []rbacv1.Subject{
+			{Kind: "ServiceAccount", Name: "default", Namespace: g.Namespace},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     "instaslices-access",
+		},
+	}
+}
+
+// kruizeDBPersistentVolumeKind generates PV for Kind/Kubernetes (different from OpenShift)
+func (g *KruizeResourceGenerator) kruizeDBPersistentVolumeKind() *corev1.PersistentVolume {
+	return &corev1.PersistentVolume{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "PersistentVolume",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kruize-db-pv",
+			Namespace: g.Namespace,
+			Labels: map[string]string{
+				"app": "kruize-db",
+			},
+		},
+		Spec: corev1.PersistentVolumeSpec{
+			Capacity: corev1.ResourceList{
+				corev1.ResourceStorage: resource.MustParse("1Gi"),
+			},
+			AccessModes: []corev1.PersistentVolumeAccessMode{
+				corev1.ReadWriteOnce,
+			},
+			PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
+			PersistentVolumeSource: corev1.PersistentVolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/data/postgres",
+				},
+			},
+		},
+	}
+}
+
+// kruizeDBPersistentVolumeClaimKind generates PVC for Kind/Kubernetes
+func (g *KruizeResourceGenerator) kruizeDBPersistentVolumeClaimKind() *corev1.PersistentVolumeClaim {
+	return &corev1.PersistentVolumeClaim{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "PersistentVolumeClaim",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kruize-db-pvc",
+			Namespace: g.Namespace,
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes: []corev1.PersistentVolumeAccessMode{
+				corev1.ReadWriteOnce,
+			},
+			Resources: corev1.VolumeResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceStorage: resource.MustParse("1Gi"),
+				},
+			},
+		},
+	}
+}
+
+// kruizeDBDeploymentKind generates DB deployment for Kind with init container
+func (g *KruizeResourceGenerator) kruizeDBDeploymentKind() *appsv1.Deployment {
+	replicas := int32(1)
+	return &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kruize-db-deployment",
+			Namespace: g.Namespace,
+			Labels: map[string]string{
+				"app": "kruize-db",
+			},
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "kruize-db",
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": "kruize-db",
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:            "kruize-db",
+							Image:           "quay.io/kruizehub/postgres:15.2",
+							ImagePullPolicy: corev1.PullIfNotPresent,
+							Env: []corev1.EnvVar{
+								{Name: "POSTGRES_PASSWORD", Value: "admin"},
+								{Name: "POSTGRES_USER", Value: "admin"},
+								{Name: "POSTGRES_DB", Value: "kruizeDB"},
+							},
+							Ports: []corev1.ContainerPort{
+								{ContainerPort: 5432},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{Name: "kruize-db-storage", MountPath: "/var/lib/postgresql/data"},
+							},
+						},
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: "kruize-db-storage",
+							VolumeSource: corev1.VolumeSource{
+								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+									ClaimName: "kruize-db-pvc",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// kruizeConfigMapKind generates ConfigMap for Kind/Kubernetes
+func (g *KruizeResourceGenerator) KruizeConfigMapKind() *corev1.ConfigMap {
+	dbConfigJSON := `{
+	     "database": {
+	       "adminPassword": "admin",
+	       "adminUsername": "admin",
+	       "hostname": "kruize-db-service",
+	       "name": "kruizeDB",
+	       "password": "admin",
+	       "port": 5432,
+	       "sslMode": "require",
+	       "username": "admin"
+	     }
+	   }`
+
+	kruizeConfigJSON := fmt.Sprintf(`{
+	     "clustertype": "kubernetes",
+	     "k8stype": "minikube",
+	     "authtype": "",
+	     "monitoringagent": "prometheus",
+	     "monitoringservice": "prometheus-k8s",
+	     "monitoringendpoint": "prometheus-k8s",
+	     "savetodb": "true",
+	     "dbdriver": "jdbc:postgresql://",
+	     "plots": "true",
+	     "logAllHttpReqAndResp": "true",
+	     "recommendationsURL" : "http://kruize.%s.svc.cluster.local:8080/generateRecommendations?experiment_name=%%s",
+	     "experimentsURL" : "http://kruize.%s.svc.cluster.local:8080/createExperiment",
+	     "experimentNameFormat" : "%%datasource%%|%%clustername%%|%%namespace%%|%%workloadname%%(%%workloadtype%%)|%%containername%%",
+	     "bulkapilimit" : 1000,
+	     "isKafkaEnabled" : "false",
+	     "isROSEnabled": "false",
+	     "local": "true",
+	     "hibernate": {
+	       "dialect": "org.hibernate.dialect.PostgreSQLDialect",
+	       "driver": "org.postgresql.Driver",
+	       "c3p0minsize": 2,
+	       "c3p0maxsize": 5,
+	       "c3p0timeout": 300,
+	       "c3p0maxstatements": 50,
+	       "hbm2ddlauto": "none",
+	       "showsql": "false",
+	       "timezone": "UTC"
+	     },
+	     "logging" : {
+	       "cloudwatch": {
+	         "accessKeyId": "",
+	         "logGroup": "kruize-logs",
+	         "logStream": "kruize-stream",
+	         "region": "",
+	         "secretAccessKey": "",
+	         "logLevel": "INFO"
+	       }
+	     },
+	     "datasource": [
+	       {
+	         "name": "prometheus-1",
+	         "provider": "prometheus",
+	         "serviceName": "prometheus-k8s",
+	         "namespace": "%s",
+	         "url": ""
+	       }
+	     ]
+	   }`, g.Namespace, g.Namespace, g.Namespace)
+
+	return &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kruizeconfig",
+			Namespace: g.Namespace,
+		},
+		Data: map[string]string{
+			"dbconfigjson":     dbConfigJSON,
+			"kruizeconfigjson": kruizeConfigJSON,
+		},
+	}
+}
+
+// kruizeDeploymentKind generates Kruize deployment for Kind with init container
+func (g *KruizeResourceGenerator) kruizeDeploymentKind() *appsv1.Deployment {
+	replicas := int32(1)
+	return &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kruize",
+			Namespace: g.Namespace,
+			Labels: map[string]string{
+				"app": "kruize",
+			},
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"name": "kruize",
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app":  "kruize",
+						"name": "kruize",
+					},
+				},
+				Spec: corev1.PodSpec{
+					InitContainers: []corev1.Container{
+						{
+							Name:            "wait-for-kruize-db",
+							Image:           "quay.io/kruizehub/postgres:15.2",
+							ImagePullPolicy: corev1.PullIfNotPresent,
+							Command: []string{
+								"sh",
+								"-c",
+								"until pg_isready -h kruize-db-service -p 5432 -U admin; do echo \"Waiting for kruize-db-service to be ready...\"; sleep 2; done",
+							},
+						},
+					},
+					Containers: []corev1.Container{
+						{
+							Name:            "kruize",
+							Image:           g.Autotune_image,
+							ImagePullPolicy: corev1.PullAlways,
+							VolumeMounts: []corev1.VolumeMount{
+								{Name: "config-volume", MountPath: "/etc/config"},
+							},
+							Env: []corev1.EnvVar{
+								{Name: "LOGGING_LEVEL", Value: "info"},
+								{Name: "ROOT_LOGGING_LEVEL", Value: "error"},
+								{Name: "DB_CONFIG_FILE", Value: "/etc/config/dbconfigjson"},
+								{Name: "KRUIZE_CONFIG_FILE", Value: "/etc/config/kruizeconfigjson"},
+								{Name: "JAVA_TOOL_OPTIONS", Value: "-XX:MaxRAMPercentage=80"},
+								{Name: "KAFKA_BOOTSTRAP_SERVERS", Value: "kruize-kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"},
+								{Name: "KAFKA_TOPICS", Value: "recommendations-topic,error-topic,summary-topic"},
+								{Name: "KAFKA_RESPONSE_FILTER_INCLUDE", Value: "summary"},
+								{Name: "KAFKA_RESPONSE_FILTER_EXCLUDE", Value: ""},
+							},
+							Ports: []corev1.ContainerPort{
+								{Name: "kruize-port", ContainerPort: 8080},
+							},
+						},
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: "config-volume",
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
+										Name: "kruizeconfig",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// kruizeServiceKind generates Service for Kind (NodePort instead of ClusterIP)
+func (g *KruizeResourceGenerator) kruizeServiceKind() *corev1.Service {
+	return &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kruize",
+			Namespace: g.Namespace,
+			Annotations: map[string]string{
+				"prometheus.io/scrape": "true",
+				"prometheus.io/path":   "/metrics",
+			},
+			Labels: map[string]string{
+				"app": "kruize",
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeNodePort,
+			Selector: map[string]string{
+				"app": "kruize",
+			},
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "kruize-port",
+					Port:       8080,
+					TargetPort: intstr.FromInt(8080),
+				},
+			},
+		},
+	}
+}
+
+// createPartitionCronJob generates the CronJob for creating partitions
+func (g *KruizeResourceGenerator) createPartitionCronJob() *batchv1.CronJob {
+	return &batchv1.CronJob{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "batch/v1",
+			Kind:       "CronJob",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "create-partition-cronjob",
+			Namespace: g.Namespace,
+		},
+		Spec: batchv1.CronJobSpec{
+			Schedule: "0 0 25 * *", // Run on 25th of every month at midnight
+			JobTemplate: batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:            "kruizecronjob",
+									Image:           g.Autotune_image,
+									ImagePullPolicy: corev1.PullAlways,
+									VolumeMounts: []corev1.VolumeMount{
+										{Name: "config-volume", MountPath: "/etc/config"},
+									},
+									Command: []string{"sh", "-c", "/home/autotune/app/target/bin/CreatePartition"},
+									Args:    []string{""},
+									Env: []corev1.EnvVar{
+										{Name: "START_AUTOTUNE", Value: "false"},
+										{Name: "LOGGING_LEVEL", Value: "info"},
+										{Name: "ROOT_LOGGING_LEVEL", Value: "error"},
+										{Name: "DB_CONFIG_FILE", Value: "/etc/config/dbconfigjson"},
+										{Name: "KRUIZE_CONFIG_FILE", Value: "/etc/config/kruizeconfigjson"},
+									},
+								},
+							},
+							Volumes: []corev1.Volume{
+								{
+									Name: "config-volume",
+									VolumeSource: corev1.VolumeSource{
+										ConfigMap: &corev1.ConfigMapVolumeSource{
+											LocalObjectReference: corev1.LocalObjectReference{
+												Name: "kruizeconfig",
+											},
+										},
+									},
+								},
+							},
+							RestartPolicy: corev1.RestartPolicyOnFailure,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// deletePartitionCronJob generates the CronJob for deleting old partitions
+func (g *KruizeResourceGenerator) deletePartitionCronJob() *batchv1.CronJob {
+	return &batchv1.CronJob{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "batch/v1",
+			Kind:       "CronJob",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kruize-delete-partition-cronjob",
+			Namespace: g.Namespace,
+		},
+		Spec: batchv1.CronJobSpec{
+			Schedule: "0 0 25 * *",
+			JobTemplate: batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:            "kruizedeletejob",
+									Image:           g.Autotune_image,
+									ImagePullPolicy: corev1.PullAlways,
+									VolumeMounts: []corev1.VolumeMount{
+										{Name: "config-volume", MountPath: "/etc/config"},
+									},
+									Command: []string{"sh", "-c", "/home/autotune/app/target/bin/RetentionPartition"},
+									Args:    []string{""},
+									Env: []corev1.EnvVar{
+										{Name: "START_AUTOTUNE", Value: "false"},
+										{Name: "LOGGING_LEVEL", Value: "info"},
+										{Name: "ROOT_LOGGING_LEVEL", Value: "error"},
+										{Name: "DB_CONFIG_FILE", Value: "/etc/config/dbconfigjson"},
+										{Name: "KRUIZE_CONFIG_FILE", Value: "/etc/config/kruizeconfigjson"},
+										{Name: "deletepartitionsthreshold", Value: "15"},
+									},
+								},
+							},
+							Volumes: []corev1.Volume{
+								{
+									Name: "config-volume",
+									VolumeSource: corev1.VolumeSource{
+										ConfigMap: &corev1.ConfigMapVolumeSource{
+											LocalObjectReference: corev1.LocalObjectReference{
+												Name: "kruizeconfig",
+											},
+										},
+									},
+								},
+							},
+							RestartPolicy: corev1.RestartPolicyOnFailure,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// kruizeServiceMonitor generates the ServiceMonitor for Prometheus monitoring
+func (g *KruizeResourceGenerator) kruizeServiceMonitor() *monitoringv1.ServiceMonitor {
+	return &monitoringv1.ServiceMonitor{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "monitoring.coreos.com/v1",
+			Kind:       "ServiceMonitor",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kruize-service-monitor",
+			Namespace: g.Namespace,
+			Labels: map[string]string{
+				"app": "kruize",
+			},
+		},
+		Spec: monitoringv1.ServiceMonitorSpec{
+			Selector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "kruize",
+				},
+			},
+			Endpoints: []monitoringv1.Endpoint{
+				{
+					Port:     "kruize-port",
+					Interval: "30s",
+					Path:     "/metrics",
+				},
+			},
+		},
+	}
+}
+
+// KindClusterScopedResources returns cluster-scoped resources for Kind/Kubernetes
+func (g *KruizeResourceGenerator) KindClusterScopedResources() []client.Object {
+	return []client.Object{
+		g.recommendationUpdaterClusterRole(),
+		g.recommendationUpdaterClusterRoleBinding(),
+		g.kruizeEditKOClusterRole(),
+		g.instaslicesAccessClusterRole(),
+		g.instaslicesAccessClusterRoleBinding(),
+		g.kruizeEditKOClusterRoleBinding(),
+		g.kruizeDBPersistentVolumeKind(),
+		g.kruizeDBPersistentVolumeClaimKind(),
+		// FOR PROMETHEUS MONITORING:
+		//         g.monitoringAccessClusterRole(),
+		//         g.monitoringAccessClusterRoleBinding(),
+	}
+}
+
+// KindNamespacedResources returns namespaced resources for Kind/Kubernetes
+func (g *KruizeResourceGenerator) KindNamespacedResources() []client.Object {
+	return []client.Object{
+		g.kruizeDBDeploymentKind(),
+		g.kruizeDBService(),
+		g.kruizeDeploymentKind(),
+		g.kruizeServiceKind(),
+		g.createPartitionCronJob(),
+		g.kruizeServiceMonitor(),
+		g.nginxConfigMap(),
+		g.kruizeUINginxService(),
+		g.kruizeUINginxPod(),
+		g.deletePartitionCronJob(),
 	}
 }

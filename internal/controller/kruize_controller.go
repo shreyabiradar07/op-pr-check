@@ -42,9 +42,9 @@ import (
 
 	mydomainv1alpha1 "github.com/kruize/kruize-operator/api/v1alpha1"
 
-    "sigs.k8s.io/controller-runtime/pkg/log"
-    "github.com/kruize/kruize-operator/internal/utils"
-    "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"github.com/kruize/kruize-operator/internal/utils"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // KruizeReconciler reconciles a Kruize object
@@ -68,7 +68,7 @@ type KruizeReconciler struct {
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;create
 //+kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;create
-//+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;create
+//+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;create
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=get;create
@@ -133,6 +133,8 @@ func (r *KruizeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	case "openshift":
 		targetNamespace = kruize.Spec.Namespace
 	case "minikube":
+		targetNamespace = "monitoring"
+	case "kind":
 		targetNamespace = "monitoring"
 	default:
 		targetNamespace = "openshift-tuning"
@@ -258,6 +260,8 @@ func (r *KruizeReconciler) deployKruize(ctx context.Context, kruize *mydomainv1a
 		autotune_ns = kruize.Spec.Namespace
 	case "minikube":
 		autotune_ns = "monitoring"
+	case "kind":
+		autotune_ns = "monitoring"
 	default:
 		return fmt.Errorf("unsupported cluster type: %s", cluster_type)
 	}
@@ -286,11 +290,12 @@ func (r *KruizeReconciler) deployKruizeComponents(ctx context.Context, namespace
 		return nil
 	}
 
-    k8sObjectGenerator := utils.NewKruizeResourceGenerator(
-        namespace,
-        kruize.Spec.Autotune_image,
-        kruize.Spec.Autotune_ui_image,
-    )
+	k8sObjectGenerator := utils.NewKruizeResourceGenerator(
+		namespace,
+		kruize.Spec.Autotune_image,
+		kruize.Spec.Autotune_ui_image,
+		clusterType,
+	)
 
 	// Reconcile Namespace FIRST (no owner reference)
 	kruizeNamespace := k8sObjectGenerator.KruizeNamespace()
@@ -300,14 +305,29 @@ func (r *KruizeReconciler) deployKruizeComponents(ctx context.Context, namespace
 	}
 
 	kruizeServiceAccount := k8sObjectGenerator.KruizeServiceAccount()
-
 	if err := r.reconcileClusterResource(ctx, kruizeServiceAccount); err != nil {
 		logger.Error(err, "Failed to reconcile kruize service account")
 		return err
 	}
 
+	// Reconcile cluster-scoped resources based on cluster type
+	var clusterScopedObjects []client.Object
+	var namespacedObjects []client.Object
+	var configmap client.Object
+
+	if clusterType == "openshift" {
+		// OpenShift-specific resources
+		clusterScopedObjects = k8sObjectGenerator.ClusterScopedResources()
+		configmap = k8sObjectGenerator.KruizeConfigMap()
+		namespacedObjects = k8sObjectGenerator.NamespacedResources()
+	} else {
+		// Kind/Minikube-specific resources
+		clusterScopedObjects = k8sObjectGenerator.KindClusterScopedResources()
+		configmap = k8sObjectGenerator.KruizeConfigMapKind()
+		namespacedObjects = k8sObjectGenerator.KindNamespacedResources()
+	}
+
 	// Reconcile cluster-scoped resources (no owner reference)
-	clusterScopedObjects := k8sObjectGenerator.ClusterScopedResources()
 	for _, obj := range clusterScopedObjects {
 		if err := r.reconcileClusterResource(ctx, obj); err != nil {
 			logger.Error(err, "Failed to reconcile cluster-scoped resource", "Kind", obj.GetObjectKind().GroupVersionKind().Kind, "Name", obj.GetName())
@@ -315,14 +335,13 @@ func (r *KruizeReconciler) deployKruizeComponents(ctx context.Context, namespace
 		}
 	}
 
-	configmap := k8sObjectGenerator.KruizeConfigMap()
+	// Reconcile ConfigMap
 	if err := r.reconcileClusterResource(ctx, configmap); err != nil {
 		logger.Error(err, "Failed to reconcile configmap")
 		return err
 	}
 
 	// Reconcile namespace-scoped resources (WITH owner reference)
-	namespacedObjects := k8sObjectGenerator.NamespacedResources()
 	for _, obj := range namespacedObjects {
 		if err := r.reconcileNamespacedResource(ctx, kruize, obj); err != nil {
 			logger.Error(err, "Failed to reconcile namespaced resource", "Kind", obj.GetObjectKind().GroupVersionKind().Kind, "Name", obj.GetName())
@@ -330,7 +349,7 @@ func (r *KruizeReconciler) deployKruizeComponents(ctx context.Context, namespace
 		}
 	}
 
-	logger.Info("Successfully reconciled all dependent resources")
+	logger.Info("Successfully reconciled all dependent resources", "clusterType", clusterType)
 	return nil
 }
 
