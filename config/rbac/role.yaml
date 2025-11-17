@@ -149,6 +149,8 @@ rules:
   verbs:
   - create
   - get
+  - list
+  - watch
 - apiGroups:
   - batch
   resources:
@@ -190,6 +192,8 @@ rules:
   - create
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - monitoring.coreos.com
@@ -199,6 +203,8 @@ rules:
   - create
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - monitoring.coreos.com
@@ -207,7 +213,10 @@ rules:
   verbs:
   - create
   - get
+  - list
+  - patch
   - update
+  - watch
 - apiGroups:
   - monitoring.coreos.com
   resources:
@@ -215,6 +224,10 @@ rules:
   verbs:
   - create
   - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - monitoring.coreos.com
   resources:
@@ -223,6 +236,8 @@ rules:
   - create
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - my.domain
