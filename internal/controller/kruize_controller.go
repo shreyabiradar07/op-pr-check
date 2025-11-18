@@ -71,6 +71,7 @@ type KruizeReconciler struct {
 //+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;create
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create
+//+kubebuilder:rbac:groups=inference.redhat.com,resources=instaslices,verbs=get;list;watch
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=get;create
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;create

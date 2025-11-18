@@ -169,6 +169,14 @@ rules:
   - list
   - watch
 - apiGroups:
+  - inference.redhat.com
+  resources:
+  - instaslices
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - metrics.k8s.io
   resources:
   - nodes
