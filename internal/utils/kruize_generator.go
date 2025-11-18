@@ -18,6 +18,10 @@ func boolPtr(b bool) *bool {
 	return &b
 }
 
+func int64Ptr(i int64) *int64 {
+	return &i
+}
+
 // KruizeResourceGenerator holds common data needed for creating resources.
 type KruizeResourceGenerator struct {
 	Namespace         string
@@ -74,7 +78,7 @@ func (g *KruizeResourceGenerator) NamespacedResources() []client.Object {
 
 func (g *KruizeResourceGenerator) Routes() []client.Object {
 	routes := []*routev1.Route{
-		g.generateRoute("kruize", "kruize-service", "http"),
+		g.generateRoute("kruize", "kruize", "http"),
 		g.generateRoute("kruize-ui-nginx-service", "kruize-ui-nginx-service", "http"),
 	}
 
@@ -390,8 +394,8 @@ func (g *KruizeResourceGenerator) KruizeConfigMap() *corev1.ConfigMap {
       "plots": "true",
       "local": "true",
       "logAllHttpReqAndResp": "true",
-      "recommendationsURL" : "http://kruize-service.%s.svc.cluster.local:8080/generateRecommendations?experiment_name=%%s",
-      "experimentsURL" : "http://kruize-service.%s.svc.cluster.local:8080/createExperiment",
+      "recommendationsURL" : "http://kruize.%s.svc.cluster.local:8080/generateRecommendations?experiment_name=%%s",
+      "experimentsURL" : "http://kruize.%s.svc.cluster.local:8080/createExperiment",
       "experimentNameFormat" : "%%datasource%%|%%clustername%%|%%namespace%%|%%workloadname%%(%%workloadtype%%)|%%containername%%",
       "bulkapilimit" : 1000,
       "isKafkaEnabled" : "false",
@@ -692,7 +696,7 @@ func (g *KruizeResourceGenerator) kruizeService() *corev1.Service {
 			Kind:       "Service",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "kruize-service",
+			Name:      "kruize",
 			Namespace: g.Namespace,
 		},
 		Spec: corev1.ServiceSpec{
@@ -744,10 +748,10 @@ func (g *KruizeResourceGenerator) kruizeUINginxPod() *corev1.Pod {
 					Image:           g.Autotune_ui_image,
 					ImagePullPolicy: corev1.PullAlways,
 					Env: []corev1.EnvVar{
-						{Name: "KRUIZE_API_URL", Value: "http://kruize-service:8080"},
-						{Name: "REACT_APP_KRUIZE_API_URL", Value: "http://kruize-service:8080"},
-						{Name: "KRUIZE_UI_API_URL", Value: "http://kruize-service:8080"},
-						{Name: "API_URL", Value: "http://kruize-service:8080"},
+						{Name: "KRUIZE_API_URL", Value: "http://kruize:8080"},
+						{Name: "REACT_APP_KRUIZE_API_URL", Value: "http://kruize:8080"},
+						{Name: "KRUIZE_UI_API_URL", Value: "http://kruize:8080"},
+						{Name: "API_URL", Value: "http://kruize:8080"},
 					},
 					VolumeMounts: []corev1.VolumeMount{
 						{
@@ -765,6 +769,7 @@ func (g *KruizeResourceGenerator) kruizeUINginxPod() *corev1.Pod {
 					SecurityContext: &corev1.SecurityContext{
 						AllowPrivilegeEscalation: boolPtr(false),
 						RunAsNonRoot:             boolPtr(true),
+						RunAsUser:                int64Ptr(101),
 						Capabilities: &corev1.Capabilities{
 							Drop: []corev1.Capability{"ALL"},
 						},
@@ -805,7 +810,7 @@ func (g *KruizeResourceGenerator) nginxConfigMap() *corev1.ConfigMap {
 events {}
 http {
   upstream kruize-api {
-	server kruize-service:8080;
+	server kruize:8080;
   }
 
   server {
@@ -1422,9 +1427,6 @@ func (g *KruizeResourceGenerator) KindClusterScopedResources() []client.Object {
 		g.kruizeEditKOClusterRoleBinding(),
 		g.kruizeDBPersistentVolumeKind(),
 		g.kruizeDBPersistentVolumeClaimKind(),
-		// FOR PROMETHEUS MONITORING:
-		//         g.monitoringAccessClusterRole(),
-		//         g.monitoringAccessClusterRoleBinding(),
 	}
 }
 
