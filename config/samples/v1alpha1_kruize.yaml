@@ -6,11 +6,13 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: kruize-sample
 spec:
+  # Supported values: "openshift", "minikube", "kind"
   cluster_type: "openshift"
   size: 3
-  autotune_image: "quay.io/kruize/autotune_operator:0.7"
+  autotune_image: "quay.io/kruize/autotune_operator:0.7.1"
   autotune_ui_image: "quay.io/kruize/kruize-ui:0.0.9"
   non_interactive: 1
   use_yaml_build: 0	
   autotune_configmaps: "autotune-configmaps"
+  # For OpenShift, use: "openshift-tuning", Minikube/KIND, use: "monitoring"
   namespace: "openshift-tuning"
