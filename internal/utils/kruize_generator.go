@@ -392,6 +392,7 @@ func (g *KruizeResourceGenerator) KruizeConfigMap() *corev1.ConfigMap {
       "savetodb": "true",
       "dbdriver": "jdbc:postgresql://",
       "plots": "true",
+      "isROSEnabled": "false",
       "local": "true",
       "logAllHttpReqAndResp": "true",
       "recommendationsURL" : "http://kruize.%s.svc.cluster.local:8080/generateRecommendations?experiment_name=%%s",
