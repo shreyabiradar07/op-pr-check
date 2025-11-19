@@ -128,18 +128,7 @@ func (r *KruizeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	fmt.Println("Deployment initiated, waiting for pods to be ready")
 
-	// Determine the target namespace based on cluster type
-	var targetNamespace string
-	switch kruize.Spec.Cluster_type {
-	case "openshift":
-		targetNamespace = kruize.Spec.Namespace
-	case "minikube":
-		targetNamespace = "monitoring"
-	case "kind":
-		targetNamespace = "monitoring"
-	default:
-		targetNamespace = "openshift-tuning"
-	}
+	var targetNamespace = kruize.Spec.Namespace
 
 	// Wait for Kruize pods to be ready
 	err = r.waitForKruizePods(ctx, targetNamespace, 5*time.Minute)
@@ -254,18 +243,7 @@ func (r *KruizeReconciler) deployKruize(ctx context.Context, kruize *mydomainv1a
 	cluster_type := kruize.Spec.Cluster_type
 	fmt.Println("Deploying Kruize for cluster type:", cluster_type)
 
-	var autotune_ns string
-
-	switch cluster_type {
-	case "openshift":
-		autotune_ns = kruize.Spec.Namespace
-	case "minikube":
-		autotune_ns = "monitoring"
-	case "kind":
-		autotune_ns = "monitoring"
-	default:
-		return fmt.Errorf("unsupported cluster type: %s", cluster_type)
-	}
+	var autotune_ns = kruize.Spec.Namespace
 
 	// Deploy the Kruize components directly
 	err := r.deployKruizeComponents(ctx, autotune_ns, cluster_type, kruize)
@@ -323,9 +301,9 @@ func (r *KruizeReconciler) deployKruizeComponents(ctx context.Context, namespace
 		namespacedObjects = k8sObjectGenerator.NamespacedResources()
 	} else {
 		// Kind/Minikube-specific resources
-		clusterScopedObjects = k8sObjectGenerator.KindClusterScopedResources()
-		configmap = k8sObjectGenerator.KruizeConfigMapKind()
-		namespacedObjects = k8sObjectGenerator.KindNamespacedResources()
+		clusterScopedObjects = k8sObjectGenerator.KubernetesClusterScopedResources()
+		configmap = k8sObjectGenerator.KruizeConfigMapKubernetes()
+		namespacedObjects = k8sObjectGenerator.KubernetesNamespacedResources()
 	}
 
 	// Reconcile cluster-scoped resources (no owner reference)

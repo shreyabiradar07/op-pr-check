@@ -953,8 +953,8 @@ func (g *KruizeResourceGenerator) instaslicesAccessClusterRoleBinding() *rbacv1.
 	}
 }
 
-// kruizeDBPersistentVolumeKind generates PV for Kind/Kubernetes (different from OpenShift)
-func (g *KruizeResourceGenerator) kruizeDBPersistentVolumeKind() *corev1.PersistentVolume {
+// kruizeDBPersistentVolumeKubernetes generates PV for Kind/Minikube/Kubernetes (different from OpenShift)
+func (g *KruizeResourceGenerator) kruizeDBPersistentVolumeKubernetes() *corev1.PersistentVolume {
 	return &corev1.PersistentVolume{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -984,8 +984,8 @@ func (g *KruizeResourceGenerator) kruizeDBPersistentVolumeKind() *corev1.Persist
 	}
 }
 
-// kruizeDBPersistentVolumeClaimKind generates PVC for Kind/Kubernetes
-func (g *KruizeResourceGenerator) kruizeDBPersistentVolumeClaimKind() *corev1.PersistentVolumeClaim {
+// kruizeDBPersistentVolumeClaimKubernetes generates PVC for Kind/Minikube/Kubernetes
+func (g *KruizeResourceGenerator) kruizeDBPersistentVolumeClaimKubernetes() *corev1.PersistentVolumeClaim {
 	return &corev1.PersistentVolumeClaim{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -1008,8 +1008,8 @@ func (g *KruizeResourceGenerator) kruizeDBPersistentVolumeClaimKind() *corev1.Pe
 	}
 }
 
-// kruizeDBDeploymentKind generates DB deployment for Kind with init container
-func (g *KruizeResourceGenerator) kruizeDBDeploymentKind() *appsv1.Deployment {
+// kruizeDBDeploymentKubernetes generates DB deployment for Kind/Minikube with init container
+func (g *KruizeResourceGenerator) kruizeDBDeploymentKubernetes() *appsv1.Deployment {
 	replicas := int32(1)
 	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -1071,8 +1071,8 @@ func (g *KruizeResourceGenerator) kruizeDBDeploymentKind() *appsv1.Deployment {
 	}
 }
 
-// kruizeConfigMapKind generates ConfigMap for Kind/Kubernetes
-func (g *KruizeResourceGenerator) KruizeConfigMapKind() *corev1.ConfigMap {
+// kruizeConfigMapKubernetes generates ConfigMap for Kind/Minikube/Kubernetes
+func (g *KruizeResourceGenerator) KruizeConfigMapKubernetes() *corev1.ConfigMap {
 	dbConfigJSON := `{
 	     "database": {
 	       "adminPassword": "admin",
@@ -1152,8 +1152,8 @@ func (g *KruizeResourceGenerator) KruizeConfigMapKind() *corev1.ConfigMap {
 	}
 }
 
-// kruizeDeploymentKind generates Kruize deployment for Kind with init container
-func (g *KruizeResourceGenerator) kruizeDeploymentKind() *appsv1.Deployment {
+// kruizeDeploymentKubernetes generates Kruize deployment for Kind/Minikube with init container
+func (g *KruizeResourceGenerator) kruizeDeploymentKubernetes() *appsv1.Deployment {
 	replicas := int32(1)
 	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -1236,8 +1236,8 @@ func (g *KruizeResourceGenerator) kruizeDeploymentKind() *appsv1.Deployment {
 	}
 }
 
-// kruizeServiceKind generates Service for Kind (NodePort instead of ClusterIP)
-func (g *KruizeResourceGenerator) kruizeServiceKind() *corev1.Service {
+// kruizeServiceKubernetes generates Service for Kind/Minikube (NodePort instead of ClusterIP)
+func (g *KruizeResourceGenerator) kruizeServiceKubernetes() *corev1.Service {
 	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -1416,8 +1416,8 @@ func (g *KruizeResourceGenerator) kruizeServiceMonitor() *monitoringv1.ServiceMo
 	}
 }
 
-// KindClusterScopedResources returns cluster-scoped resources for Kind/Kubernetes
-func (g *KruizeResourceGenerator) KindClusterScopedResources() []client.Object {
+// KubernetesClusterScopedResources returns cluster-scoped resources for Kind/Minikube/Kubernetes
+func (g *KruizeResourceGenerator) KubernetesClusterScopedResources() []client.Object {
 	return []client.Object{
 		g.recommendationUpdaterClusterRole(),
 		g.recommendationUpdaterClusterRoleBinding(),
@@ -1425,18 +1425,18 @@ func (g *KruizeResourceGenerator) KindClusterScopedResources() []client.Object {
 		g.instaslicesAccessClusterRole(),
 		g.instaslicesAccessClusterRoleBinding(),
 		g.kruizeEditKOClusterRoleBinding(),
-		g.kruizeDBPersistentVolumeKind(),
-		g.kruizeDBPersistentVolumeClaimKind(),
+		g.kruizeDBPersistentVolumeKubernetes(),
+		g.kruizeDBPersistentVolumeClaimKubernetes(),
 	}
 }
 
-// KindNamespacedResources returns namespaced resources for Kind/Kubernetes
-func (g *KruizeResourceGenerator) KindNamespacedResources() []client.Object {
+// KubernetesNamespacedResources returns namespaced resources for Kind/minikube/Kubernetes
+func (g *KruizeResourceGenerator) KubernetesNamespacedResources() []client.Object {
 	return []client.Object{
-		g.kruizeDBDeploymentKind(),
+		g.kruizeDBDeploymentKubernetes(),
 		g.kruizeDBService(),
-		g.kruizeDeploymentKind(),
-		g.kruizeServiceKind(),
+		g.kruizeDeploymentKubernetes(),
+		g.kruizeServiceKubernetes(),
 		g.createPartitionCronJob(),
 		g.kruizeServiceMonitor(),
 		g.nginxConfigMap(),
