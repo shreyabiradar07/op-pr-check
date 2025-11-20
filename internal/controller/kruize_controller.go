@@ -79,7 +79,7 @@ type KruizeReconciler struct {
 //+kubebuilder:rbac:groups=extensions,resources=ingresses,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,verbs=get;create;use
-//+kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;create
+//+kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;create;list;watch
 //+kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create
 //+kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create
@@ -94,6 +94,8 @@ type KruizeReconciler struct {
 //+kubebuilder:rbac:groups=metrics.k8s.io,resources=pods,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=metrics.k8s.io,resources=nodes,verbs=get;list;
 //+kubebuilder:rbac:groups=autoscaling.k8s.io,resources=verticalpodautoscalers,verbs=get;list;watch;create;update;patch
+//+kubebuilder:rbac:groups=autoscaling.k8s.io,resources=verticalpodautoscalers/status,verbs=get;list;watch;create;update;patch
+//+kubebuilder:rbac:groups=autoscaling.k8s.io,resources=verticalpodautoscalercheckpoints,verbs=get;list;watch;create;update;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -276,18 +278,6 @@ func (r *KruizeReconciler) deployKruizeComponents(ctx context.Context, namespace
 		clusterType,
 	)
 
-	// Reconcile Namespace FIRST (no owner reference)
-	kruizeNamespace := k8sObjectGenerator.KruizeNamespace()
-	if err := r.reconcileClusterResource(ctx, kruizeNamespace); err != nil {
-		logger.Error(err, "Failed to reconcile Namespace")
-		return err
-	}
-
-	kruizeServiceAccount := k8sObjectGenerator.KruizeServiceAccount()
-	if err := r.reconcileClusterResource(ctx, kruizeServiceAccount); err != nil {
-		logger.Error(err, "Failed to reconcile kruize service account")
-		return err
-	}
 
 	// Reconcile cluster-scoped resources based on cluster type
 	var clusterScopedObjects []client.Object
@@ -296,6 +286,20 @@ func (r *KruizeReconciler) deployKruizeComponents(ctx context.Context, namespace
 
 	if clusterType == "openshift" {
 		// OpenShift-specific resources
+
+        	// Reconcile Namespace FIRST (no owner reference)
+        	kruizeNamespace := k8sObjectGenerator.KruizeNamespace()
+        	if err := r.reconcileClusterResource(ctx, kruizeNamespace); err != nil {
+            		logger.Error(err, "Failed to reconcile Namespace")
+            		return err
+        	}
+
+        	kruizeServiceAccount := k8sObjectGenerator.KruizeServiceAccount()
+        	if err := r.reconcileClusterResource(ctx, kruizeServiceAccount); err != nil {
+            		logger.Error(err, "Failed to reconcile kruize service account")
+            		return err
+        	}
+
 		clusterScopedObjects = k8sObjectGenerator.ClusterScopedResources()
 		configmap = k8sObjectGenerator.KruizeConfigMap()
 		namespacedObjects = k8sObjectGenerator.NamespacedResources()

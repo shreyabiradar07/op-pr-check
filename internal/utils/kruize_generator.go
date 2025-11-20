@@ -118,20 +118,6 @@ func (g *KruizeResourceGenerator) generateRoute(name, serviceName, targetPort st
 	}
 }
 
-func (g *KruizeResourceGenerator) RBACAndConfigResources() []client.Object {
-	return []client.Object{
-		g.KruizeServiceAccount(),
-		g.recommendationUpdaterClusterRole(),
-		g.recommendationUpdaterClusterRoleBinding(),
-		g.monitoringViewClusterRoleBinding(),
-		g.prometheusReaderClusterRoleBinding(),
-		g.systemReaderClusterRoleBinding(),
-		g.monitoringAccessClusterRole(),
-		g.monitoringAccessClusterRoleBinding(),
-		g.KruizeConfigMap(),
-	}
-}
-
 // kruizeServiceAccount generates the ServiceAccount for Kruize.
 func (g *KruizeResourceGenerator) KruizeNamespace() *corev1.Namespace {
 	return &corev1.Namespace{
@@ -170,15 +156,11 @@ func (g *KruizeResourceGenerator) recommendationUpdaterClusterRole() *rbacv1.Clu
 			Name: "kruize-recommendation-updater",
 		},
 		Rules: []rbacv1.PolicyRule{
-			{APIGroups: []string{""}, Resources: []string{"pods", "nodes", "namespaces", "services", "endpoints"}, Verbs: []string{"get", "list", "watch"}},
-			{APIGroups: []string{"apps"}, Resources: []string{"deployments", "replicasets", "statefulsets", "daemonsets"}, Verbs: []string{"get", "list", "watch"}},
-			{APIGroups: []string{"extensions", "networking.k8s.io"}, Resources: []string{"ingresses"}, Verbs: []string{"get", "list", "watch"}},
-			{APIGroups: []string{"autoscaling"}, Resources: []string{"horizontalpodautoscalers"}, Verbs: []string{"get", "list", "watch"}},
-			{APIGroups: []string{"autoscaling.k8s.io"}, Resources: []string{"verticalpodautoscalers"}, Verbs: []string{"get", "list", "watch", "create", "update", "patch"}},
-			{APIGroups: []string{"metrics.k8s.io"}, Resources: []string{"pods", "nodes"}, Verbs: []string{"get", "list"}},
-			{APIGroups: []string{"monitoring.coreos.com"}, Resources: []string{"prometheuses", "alertmanagers", "servicemonitors"}, Verbs: []string{"get", "list", "watch"}, ResourceNames: []string{"*"}},
-			{APIGroups: []string{"monitoring.coreos.com"}, Resources: []string{"prometheuses/api"}, Verbs: []string{"get", "create", "update"}},
-			{NonResourceURLs: []string{"/metrics", "/api/v1/label/*", "/api/v1/query*", "/api/v1/series*", "/api/v1/targets*"}, Verbs: []string{"get"}},
+			{APIGroups: []string{""}, Resources: []string{"pods"}, Verbs: []string{"get", "list", "watch", "create"}},
+			{APIGroups: []string{"apps"}, Resources: []string{"deployments"}, Verbs: []string{"get", "list", "watch", "create"}},
+			{APIGroups: []string{"apiextensions.k8s.io"}, Resources: []string{"customresourcedefinitions"}, Verbs: []string{"get", "list", "watch", "create"}},
+			{APIGroups: []string{"autoscaling.k8s.io"}, Resources: []string{"verticalpodautoscalers","verticalpodautoscalers/status", "verticalpodautoscalercheckpoints"}, Verbs: []string{"get", "list", "watch", "create", "update", "patch"}},
+            {APIGroups: []string{"rbac.authorization.k8s.io"}, Resources: []string{"clusterrolebindings"}, Verbs: []string{"get", "list", "watch", "create"}},
 		},
 	}
 }
@@ -907,6 +889,28 @@ func (g *KruizeResourceGenerator) kruizeEditKOClusterRoleBinding() *rbacv1.Clust
 			Name: "kruize-edit-ko-binding",
 		},
 		Subjects: []rbacv1.Subject{
+			{Kind: "ServiceAccount", Name: "kruize-sa", Namespace: g.Namespace},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     "kruize-edit-ko",
+		},
+	}
+}
+
+
+// kruizeEditKOClusterRoleBindingKubernetes generates the ClusterRoleBinding for kruize-edit-ko
+func (g *KruizeResourceGenerator) kruizeEditKOClusterRoleBindingKubernetes() *rbacv1.ClusterRoleBinding {
+	return &rbacv1.ClusterRoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "kruize-edit-ko-binding",
+		},
+		Subjects: []rbacv1.Subject{
 			{Kind: "ServiceAccount", Name: "default", Namespace: g.Namespace},
 		},
 		RoleRef: rbacv1.RoleRef{
@@ -935,6 +939,27 @@ func (g *KruizeResourceGenerator) instaslicesAccessClusterRole() *rbacv1.Cluster
 
 // instaslicesAccessClusterRoleBinding generates the ClusterRoleBinding for instaslices access
 func (g *KruizeResourceGenerator) instaslicesAccessClusterRoleBinding() *rbacv1.ClusterRoleBinding {
+	return &rbacv1.ClusterRoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "instaslices-access-binding",
+		},
+		Subjects: []rbacv1.Subject{
+			{Kind: "ServiceAccount", Name: "kruize-sa", Namespace: g.Namespace},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     "instaslices-access",
+		},
+	}
+}
+
+// instaslicesAccessClusterRoleBindingKubernetes generates the ClusterRoleBinding for instaslices access
+func (g *KruizeResourceGenerator) instaslicesAccessClusterRoleBindingKubernetes() *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -1417,15 +1442,36 @@ func (g *KruizeResourceGenerator) kruizeServiceMonitor() *monitoringv1.ServiceMo
 	}
 }
 
+// recommendationUpdaterClusterRoleBindingKubernetes generates the ClusterRoleBinding for the recommendation updater.
+func (g *KruizeResourceGenerator) recommendationUpdaterClusterRoleBindingKubernetes() *rbacv1.ClusterRoleBinding {
+	return &rbacv1.ClusterRoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "kruize-recommendation-updater-crb",
+		},
+		Subjects: []rbacv1.Subject{
+			{Kind: "ServiceAccount", Name: "default", Namespace: g.Namespace},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     "kruize-recommendation-updater",
+		},
+	}
+}
+
 // KubernetesClusterScopedResources returns cluster-scoped resources for Kind/Minikube/Kubernetes
 func (g *KruizeResourceGenerator) KubernetesClusterScopedResources() []client.Object {
 	return []client.Object{
 		g.recommendationUpdaterClusterRole(),
-		g.recommendationUpdaterClusterRoleBinding(),
+		g.recommendationUpdaterClusterRoleBindingKubernetes(),
 		g.kruizeEditKOClusterRole(),
 		g.instaslicesAccessClusterRole(),
-		g.instaslicesAccessClusterRoleBinding(),
-		g.kruizeEditKOClusterRoleBinding(),
+		g.instaslicesAccessClusterRoleBindingKubernetes(),
+		g.kruizeEditKOClusterRoleBindingKubernetes(),
 		g.kruizeDBPersistentVolumeKubernetes(),
 		g.kruizeDBPersistentVolumeClaimKubernetes(),
 	}

@@ -104,6 +104,8 @@ rules:
   verbs:
   - create
   - get
+  - list
+  - watch
 - apiGroups:
   - apps
   resources:
@@ -134,7 +136,29 @@ rules:
 - apiGroups:
   - autoscaling.k8s.io
   resources:
+  - verticalpodautoscalercheckpoints
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - autoscaling.k8s.io
+  resources:
   - verticalpodautoscalers
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - autoscaling.k8s.io
+  resources:
+  - verticalpodautoscalers/status
   verbs:
   - create
   - get
