@@ -1,17 +1,19 @@
 package utils
 
 import (
+	"fmt"
+
 	routev1 "github.com/openshift/api/route/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	"fmt"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func boolPtr(b bool) *bool {
@@ -57,23 +59,35 @@ func (g *KruizeResourceGenerator) ClusterScopedResources() []client.Object {
 		g.recommendationUpdaterClusterRole(),
 		g.recommendationUpdaterClusterRoleBinding(),
 		g.monitoringViewClusterRoleBinding(),
-		// g.systemReaderClusterRoleBinding(),
-		// g.monitoringAccessClusterRole(),
-		// g.monitoringAccessClusterRoleBinding(),
+		g.kruizeEditKOClusterRole(),
+		g.instaslicesAccessClusterRole(),
+		g.instaslicesAccessClusterRoleBinding(),
+		g.kruizeEditKOClusterRoleBinding(),
+		g.AutotuneClusterRoleBinding(),
+		g.ManualStorageClass(),
 		g.kruizeDBPersistentVolume(),
 		g.kruizeDBPersistentVolumeClaim(),
 	}
 }
 
-// NamespacedResources generates all namespaced resources for Kruize.
+// NamespacedResources generates all OpenShift namespaced resources for Kruize.
 // These resources will get an owner reference set to the Kruize CR.
 func (g *KruizeResourceGenerator) NamespacedResources() []client.Object {
-	var objects []client.Object
-	objects = append(objects, g.DBResources()...)
-	objects = append(objects, g.BackendResources()...)
-	objects = append(objects, g.UIResources()...)
-	objects = append(objects, g.Routes()...)
-	return objects
+	objects := []client.Object{
+		g.kruizeDBDeployment(),
+		g.kruizeDBService(),
+		g.kruizeDeployment(),
+		g.kruizeService(),
+		g.createPartitionCronJob(),
+		g.kruizeServiceMonitor(),
+		g.nginxConfigMap(),
+		g.kruizeUINginxService(),
+		g.kruizeUINginxPod(),
+		g.deletePartitionCronJob(),
+	}
+
+    objects = append(objects, g.Routes()...)
+    return objects
 }
 
 func (g *KruizeResourceGenerator) Routes() []client.Object {
@@ -213,83 +227,49 @@ func (g *KruizeResourceGenerator) monitoringViewClusterRoleBinding() *rbacv1.Clu
 	}
 }
 
-// prometheusReaderClusterRoleBinding generates the ClusterRoleBinding for prometheus reader.
-func (g *KruizeResourceGenerator) prometheusReaderClusterRoleBinding() *rbacv1.ClusterRoleBinding {
+// AutotuneClusterRoleBinding generates the autotune-scc-crb ClusterRoleBinding
+// This binds the kruize-sa ServiceAccount to the system:openshift:scc:anyuid ClusterRole
+func (g *KruizeResourceGenerator) AutotuneClusterRoleBinding() *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
 			Kind:       "ClusterRoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "kruize-prometheus-reader",
-		},
-		Subjects: []rbacv1.Subject{
-			{Kind: "ServiceAccount", Name: "kruize-sa", Namespace: g.Namespace},
+			Name: "autotune-scc-crb",
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
-			Name:     "view",
-		},
-	}
-}
-
-// systemReaderClusterRoleBinding generates the ClusterRoleBinding for system reader.
-func (g *KruizeResourceGenerator) systemReaderClusterRoleBinding() *rbacv1.ClusterRoleBinding {
-	return &rbacv1.ClusterRoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRoleBinding",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "kruize-system-reader",
+			Name:     "system:openshift:scc:anyuid",
 		},
 		Subjects: []rbacv1.Subject{
-			{Kind: "ServiceAccount", Name: "kruize-sa", Namespace: g.Namespace},
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     "system:monitoring",
-		},
-	}
-}
-
-// monitoringAccessClusterRole generates the ClusterRole for monitoring access.
-func (g *KruizeResourceGenerator) monitoringAccessClusterRole() *rbacv1.ClusterRole {
-	return &rbacv1.ClusterRole{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRole",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "kruize-monitoring-access",
-		},
-		Rules: []rbacv1.PolicyRule{
-			{APIGroups: []string{"monitoring.coreos.com"}, Resources: []string{"prometheuses", "prometheuses/api", "alertmanagers", "servicemonitors", "prometheusrules"}, Verbs: []string{"get", "list", "watch", "create", "update", "patch"}},
-			{NonResourceURLs: []string{"/api/v1/*", "/metrics"}, Verbs: []string{"get"}},
+			{
+				Kind:      "ServiceAccount",
+				Name:      "kruize-sa",
+				Namespace: g.Namespace,
+			},
 		},
 	}
 }
 
-// monitoringAccessClusterRoleBinding generates the ClusterRoleBinding for monitoring access.
-func (g *KruizeResourceGenerator) monitoringAccessClusterRoleBinding() *rbacv1.ClusterRoleBinding {
-	return &rbacv1.ClusterRoleBinding{
+// ManualStorageClass generates the manual StorageClass
+// This StorageClass uses no provisioner and retains volumes
+func (g *KruizeResourceGenerator) ManualStorageClass() *storagev1.StorageClass {
+	reclaimPolicy := corev1.PersistentVolumeReclaimRetain
+	volumeBindingMode := storagev1.VolumeBindingImmediate
+
+	return &storagev1.StorageClass{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRoleBinding",
+			APIVersion: "storage.k8s.io/v1",
+			Kind:       "StorageClass",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "kruize-monitoring-access-crb",
+			Name: "manual",
 		},
-		Subjects: []rbacv1.Subject{
-			{Kind: "ServiceAccount", Name: "kruize-sa", Namespace: g.Namespace},
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     "kruize-monitoring-access",
-		},
+		Provisioner:       "kubernetes.io/no-provisioner",
+		ReclaimPolicy:     &reclaimPolicy,
+		VolumeBindingMode: &volumeBindingMode,
 	}
 }
 
@@ -359,14 +339,14 @@ func (g *KruizeResourceGenerator) kruizeDBPersistentVolumeClaim() *corev1.Persis
 func (g *KruizeResourceGenerator) KruizeConfigMap() *corev1.ConfigMap {
 	dbConfigJSON := `{
       "database": {
-        "adminPassword": "kruize123",
-        "adminUsername": "kruize",
+        "adminPassword": "admin",
+        "adminUsername": "admin",
         "hostname": "kruize-db-service",
         "name": "kruizedb",
-        "password": "kruize123",
+        "password": "admin",
         "port": 5432,
         "sslMode": "disable",
-        "username": "kruize"
+        "username": "admin"
       }
     }`
 
@@ -399,12 +379,22 @@ func (g *KruizeResourceGenerator) KruizeConfigMap() *corev1.ConfigMap {
         "showsql": "false",
         "timezone": "UTC"
       },
+      "logging" : {
+        "cloudwatch": {
+          "accessKeyId": "",
+          "logGroup": "kruize-logs",
+          "logStream": "kruize-stream",
+          "region": "",
+          "secretAccessKey": "",
+          "logLevel": "INFO"
+        }
+      },
       "datasource": [
         {
           "name": "prometheus-1",
           "provider": "prometheus",
           "namespace": "openshift-monitoring",
-          "url": "https://prometheus-k8s.openshift-monitoring.svc.cluster.local:9091",
+          "url": "",
           "authentication": {
               "type": "bearer",
               "credentials": {
@@ -448,7 +438,7 @@ func (g *KruizeResourceGenerator) kruizeDBDeployment() *appsv1.Deployment {
 			Kind:       "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "kruize-db",
+			Name:      "kruize-db-deployment",
 			Namespace: g.Namespace,
 			Labels: map[string]string{
 				"app": "kruize-db",
@@ -468,64 +458,43 @@ func (g *KruizeResourceGenerator) kruizeDBDeployment() *appsv1.Deployment {
 					},
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: "kruize-sa", // Assuming this SA exists or is also generated
+					ServiceAccountName: "kruize-sa",
 					Containers: []corev1.Container{
 						{
 							Name:            "kruize-db",
 							Image:           "quay.io/kruizehub/postgres:15.2",
 							ImagePullPolicy: corev1.PullIfNotPresent,
 							Env: []corev1.EnvVar{
-								{Name: "POSTGRES_PASSWORD", Value: "kruize123"},
-								{Name: "POSTGRES_USER", Value: "kruize"},
-								{Name: "POSTGRES_DB", Value: "kruizedb"},
-								{Name: "POSTGRES_INITDB_ARGS", Value: "--auth-host=md5"},
-								{Name: "PGDATA", Value: "/tmp/pgdata"},
+								{Name: "POSTGRES_PASSWORD", Value: "admin"},
+								{Name: "POSTGRES_USER", Value: "admin"},
+								{Name: "POSTGRES_DB", Value: "kruizeDB"},
+								{Name: "PGDATA", Value: "/var/lib/pg_data"},
 							},
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
-									corev1.ResourceMemory: resource.MustParse("200Mi"),
-									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("100Mi"),
+									corev1.ResourceCPU:    resource.MustParse("0.5"),
 								},
 								Limits: corev1.ResourceList{
-									corev1.ResourceMemory: resource.MustParse("512Mi"),
-									corev1.ResourceCPU:    resource.MustParse("500m"),
+									corev1.ResourceMemory: resource.MustParse("100Mi"),
+									corev1.ResourceCPU:    resource.MustParse("0.5"),
 								},
 							},
 							Ports: []corev1.ContainerPort{
 								{ContainerPort: 5432},
 							},
 							VolumeMounts: []corev1.VolumeMount{
-								{Name: "postgres-storage", MountPath: "/tmp"},
-							},
-							ReadinessProbe: &corev1.Probe{
-								ProbeHandler: corev1.ProbeHandler{
-									Exec: &corev1.ExecAction{
-										Command: []string{"/bin/sh", "-c", "pg_isready -U kruize -d kruizedb"},
-									},
-								},
-								InitialDelaySeconds: 15,
-								PeriodSeconds:       10,
-								TimeoutSeconds:      5,
-								FailureThreshold:    3,
-							},
-							LivenessProbe: &corev1.Probe{
-								ProbeHandler: corev1.ProbeHandler{
-									Exec: &corev1.ExecAction{
-										Command: []string{"/bin/sh", "-c", "pg_isready -U kruize -d kruizedb"},
-									},
-								},
-								InitialDelaySeconds: 45,
-								PeriodSeconds:       20,
-								TimeoutSeconds:      5,
-								FailureThreshold:    3,
+								{Name: "kruize-db-storage", MountPath: "/var/lib/pgsql/data"},
 							},
 						},
 					},
 					Volumes: []corev1.Volume{
 						{
-							Name: "postgres-storage",
+							Name: "kruize-db-storage",
 							VolumeSource: corev1.VolumeSource{
-								EmptyDir: &corev1.EmptyDirVolumeSource{},
+								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+									ClaimName: "kruize-db-pv-claim",
+								},
 							},
 						},
 					},
@@ -576,7 +545,6 @@ func (g *KruizeResourceGenerator) BackendResources() []client.Object {
 // kruizeDeployment is a private helper that generates the deployment for the Kruize backend.
 func (g *KruizeResourceGenerator) kruizeDeployment() *appsv1.Deployment {
 	replicas := int32(1)
-	automountToken := true
 
 	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -594,24 +562,37 @@ func (g *KruizeResourceGenerator) kruizeDeployment() *appsv1.Deployment {
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"app": "kruize",
+					"name": "kruize",
 				},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"app": "kruize",
+						"app":  "kruize",
+						"name": "kruize",
 					},
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName:           "kruize-sa",
-					AutomountServiceAccountToken: &automountToken,
+					ServiceAccountName: "kruize-sa",
+					InitContainers: []corev1.Container{
+						{
+							Name:            "wait-for-kruize-db",
+							Image:           "quay.io/kruizehub/postgres:15.2",
+							ImagePullPolicy: corev1.PullIfNotPresent,
+							Command: []string{
+								"sh",
+								"-c",
+								"until pg_isready -h kruize-db-service -p 5432 -U admin; do\n  echo \"Waiting for kruize-db-service to be ready...\"\n  sleep 2\ndone\n",
+							},
+						},
+					},
 					Containers: []corev1.Container{
 						{
-							Name:  "kruize",
-							Image: g.Autotune_image,
-							Ports: []corev1.ContainerPort{
-								{ContainerPort: 8080},
+							Name:            "kruize",
+							Image:           g.Autotune_image,
+							ImagePullPolicy: corev1.PullAlways,
+							VolumeMounts: []corev1.VolumeMount{
+								{Name: "config-volume", MountPath: "/etc/config"},
 							},
 							Env: []corev1.EnvVar{
 								{Name: "LOGGING_LEVEL", Value: "info"},
@@ -619,43 +600,23 @@ func (g *KruizeResourceGenerator) kruizeDeployment() *appsv1.Deployment {
 								{Name: "DB_CONFIG_FILE", Value: "/etc/config/dbconfigjson"},
 								{Name: "KRUIZE_CONFIG_FILE", Value: "/etc/config/kruizeconfigjson"},
 								{Name: "JAVA_TOOL_OPTIONS", Value: "-XX:MaxRAMPercentage=80"},
+								{Name: "KAFKA_BOOTSTRAP_SERVERS", Value: "kruize-kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"},
+								{Name: "KAFKA_TOPICS", Value: "recommendations-topic,error-topic,summary-topic"},
+								{Name: "KAFKA_RESPONSE_FILTER_INCLUDE", Value: "experiments|status|apis|recommendations|response|status_history"},
+								{Name: "KAFKA_RESPONSE_FILTER_EXCLUDE", Value: ""},
 							},
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
-									corev1.ResourceMemory: resource.MustParse("256Mi"),
-									corev1.ResourceCPU:    resource.MustParse("250m"),
+									corev1.ResourceMemory: resource.MustParse("768Mi"),
+									corev1.ResourceCPU:    resource.MustParse("0.7"),
 								},
 								Limits: corev1.ResourceList{
-									corev1.ResourceMemory: resource.MustParse("512Mi"),
-									corev1.ResourceCPU:    resource.MustParse("500m"),
+									corev1.ResourceMemory: resource.MustParse("768Mi"),
+									corev1.ResourceCPU:    resource.MustParse("0.7"),
 								},
 							},
-							VolumeMounts: []corev1.VolumeMount{
-								{Name: "config-volume", MountPath: "/etc/config"},
-							},
-							ReadinessProbe: &corev1.Probe{
-								ProbeHandler: corev1.ProbeHandler{
-									HTTPGet: &corev1.HTTPGetAction{
-										Path: "/health",
-										Port: intstr.FromInt(8080),
-									},
-								},
-								InitialDelaySeconds: 45,
-								PeriodSeconds:       10,
-								TimeoutSeconds:      5,
-								FailureThreshold:    3,
-							},
-							LivenessProbe: &corev1.Probe{
-								ProbeHandler: corev1.ProbeHandler{
-									HTTPGet: &corev1.HTTPGetAction{
-										Path: "/health",
-										Port: intstr.FromInt(8080),
-									},
-								},
-								InitialDelaySeconds: 90,
-								PeriodSeconds:       20,
-								TimeoutSeconds:      5,
-								FailureThreshold:    3,
+							Ports: []corev1.ContainerPort{
+								{Name: "kruize-port", ContainerPort: 8080},
 							},
 						},
 					},
@@ -687,15 +648,22 @@ func (g *KruizeResourceGenerator) kruizeService() *corev1.Service {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "kruize",
 			Namespace: g.Namespace,
+			Annotations: map[string]string{
+				"prometheus.io/scrape": "true",
+				"prometheus.io/path":   "/metrics",
+			},
+			Labels: map[string]string{
+				"app": "kruize",
+			},
 		},
 		Spec: corev1.ServiceSpec{
-			Type: corev1.ServiceTypeClusterIP,
+			Type: corev1.ServiceTypeNodePort,
 			Selector: map[string]string{
 				"app": "kruize",
 			},
 			Ports: []corev1.ServicePort{
 				{
-					Name:       "http",
+					Name:       "kruize-port",
 					Port:       8080,
 					TargetPort: intstr.FromInt(8080),
 				},
@@ -706,7 +674,6 @@ func (g *KruizeResourceGenerator) kruizeService() *corev1.Service {
 
 // UIResources generates all resources related to the Kruize UI.
 func (g *KruizeResourceGenerator) UIResources() []client.Object {
-	// We will create helpers for the ConfigMap and Service next.
 	return []client.Object{
 		g.nginxConfigMap(),
 		g.kruizeUINginxService(),
@@ -741,6 +708,7 @@ func (g *KruizeResourceGenerator) kruizeUINginxPod() *corev1.Pod {
 						{Name: "REACT_APP_KRUIZE_API_URL", Value: "http://kruize:8080"},
 						{Name: "KRUIZE_UI_API_URL", Value: "http://kruize:8080"},
 						{Name: "API_URL", Value: "http://kruize:8080"},
+						{Name: "KRUIZE_UI_ENV", Value: "production"},
 					},
 					VolumeMounts: []corev1.VolumeMount{
 						{
