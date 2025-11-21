@@ -92,7 +92,7 @@ func (g *KruizeResourceGenerator) NamespacedResources() []client.Object {
 
 func (g *KruizeResourceGenerator) Routes() []client.Object {
 	routes := []*routev1.Route{
-		g.generateRoute("kruize", "kruize", "http"),
+		g.generateRoute("kruize", "kruize", "kruize-port"),
 		g.generateRoute("kruize-ui-nginx-service", "kruize-ui-nginx-service", "http"),
 	}
 
@@ -342,7 +342,7 @@ func (g *KruizeResourceGenerator) KruizeConfigMap() *corev1.ConfigMap {
         "adminPassword": "admin",
         "adminUsername": "admin",
         "hostname": "kruize-db-service",
-        "name": "kruizedb",
+        "name": "kruizeDB",
         "password": "admin",
         "port": 5432,
         "sslMode": "disable",
@@ -393,6 +393,7 @@ func (g *KruizeResourceGenerator) KruizeConfigMap() *corev1.ConfigMap {
         {
           "name": "prometheus-1",
           "provider": "prometheus",
+          "serviceName": "prometheus-k8s",
           "namespace": "openshift-monitoring",
           "url": "",
           "authentication": {
@@ -418,14 +419,6 @@ func (g *KruizeResourceGenerator) KruizeConfigMap() *corev1.ConfigMap {
 			"dbconfigjson":     dbConfigJSON,
 			"kruizeconfigjson": kruizeConfigJSON,
 		},
-	}
-}
-
-// DBResources generates all resources related to the Kruize Database (PostgreSQL).
-func (g *KruizeResourceGenerator) DBResources() []client.Object {
-	return []client.Object{
-		g.kruizeDBDeployment(),
-		g.kruizeDBService(),
 	}
 }
 
@@ -531,14 +524,6 @@ func (g *KruizeResourceGenerator) kruizeDBService() *corev1.Service {
 				"app": "kruize-db",
 			},
 		},
-	}
-}
-
-// BackendResources generates the core Kruize application Deployment and Service.
-func (g *KruizeResourceGenerator) BackendResources() []client.Object {
-	return []client.Object{
-		g.kruizeDeployment(),
-		g.kruizeService(),
 	}
 }
 
@@ -672,14 +657,6 @@ func (g *KruizeResourceGenerator) kruizeService() *corev1.Service {
 	}
 }
 
-// UIResources generates all resources related to the Kruize UI.
-func (g *KruizeResourceGenerator) UIResources() []client.Object {
-	return []client.Object{
-		g.nginxConfigMap(),
-		g.kruizeUINginxService(),
-		g.kruizeUINginxPod(),
-	}
-}
 
 func (g *KruizeResourceGenerator) kruizeUINginxPod() *corev1.Pod {
 	return &corev1.Pod{
@@ -1130,11 +1107,11 @@ func (g *KruizeResourceGenerator) KruizeConfigMapKubernetes() *corev1.ConfigMap 
 	         "name": "prometheus-1",
 	         "provider": "prometheus",
 	         "serviceName": "prometheus-k8s",
-	         "namespace": "%s",
+	         "namespace": "monitoring",
 	         "url": ""
 	       }
 	     ]
-	   }`, g.Namespace, g.Namespace, g.Namespace)
+	   }`, g.Namespace, g.Namespace)
 
 	return &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
