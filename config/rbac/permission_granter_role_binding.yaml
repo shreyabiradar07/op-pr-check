@@ -8,7 +8,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: controller-manager
-    namespace: kruize-operator-system
+    namespace: system
 roleRef:
   kind: ClusterRole
   name: permission-granter
