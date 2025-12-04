@@ -1,5 +1,8 @@
 # Adds namespace to all resources.
-namespace: kruize-operator-system
+# For OpenShift: use openshift-tuning
+# For Minikube/Kind: use monitoring
+# This will be overridden by the Makefile targets
+namespace: openshift-tuning
 
 # Value of this field is prepended to the
 # names of all resources, e.g. a deployment named

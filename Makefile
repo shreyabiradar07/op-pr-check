@@ -177,6 +177,12 @@ ifndef ignore-not-found
   ignore-not-found = false
 endif
 
+# OPERATOR_NAMESPACE defines the namespace where the operator will be deployed
+# For OpenShift: openshift-tuning (where Kruize resources will also be deployed)
+# For Minikube/Kind: monitoring (where Kruize resources will also be deployed)
+# Override with: make deploy OPERATOR_NAMESPACE=monitoring
+OPERATOR_NAMESPACE ?= openshift-tuning
+
 .PHONY: install
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
@@ -186,13 +192,35 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: deploy
-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config. Use OPERATOR_NAMESPACE to override namespace (default: openshift-tuning).
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	cd config/default && $(KUSTOMIZE) edit set namespace ${OPERATOR_NAMESPACE}
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
+	@echo "Operator deployed to namespace: ${OPERATOR_NAMESPACE}"
+	@echo "Kruize resources will be deployed in the same namespace: ${OPERATOR_NAMESPACE}"
+
+.PHONY: deploy-openshift
+deploy-openshift: ## Deploy operator and Kruize resources to OpenShift cluster in openshift-tuning namespace.
+	@echo "Deploying to OpenShift - operator and Kruize resources will be in openshift-tuning namespace"
+	$(MAKE) deploy OPERATOR_NAMESPACE=openshift-tuning
+
+.PHONY: deploy-minikube
+deploy-minikube: ## Deploy operator and Kruize resources to Minikube/Kind cluster in monitoring namespace.
+	@echo "Deploying to Minikube/Kind - operator and Kruize resources will be in monitoring namespace"
+	$(MAKE) deploy OPERATOR_NAMESPACE=monitoring
 
 .PHONY: undeploy
-undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Use OPERATOR_NAMESPACE to override namespace (default: openshift-tuning). Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	cd config/default && $(KUSTOMIZE) edit set namespace ${OPERATOR_NAMESPACE}
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+
+.PHONY: undeploy-openshift
+undeploy-openshift: ## Undeploy controller from OpenShift cluster in openshift-tuning namespace.
+	$(MAKE) undeploy OPERATOR_NAMESPACE=openshift-tuning
+
+.PHONY: undeploy-minikube
+undeploy-minikube: ## Undeploy controller from Minikube/Kind cluster in monitoring namespace.
+	$(MAKE) undeploy OPERATOR_NAMESPACE=monitoring
 
 ##@ Dependencies
 
