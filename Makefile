@@ -196,17 +196,13 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	cd config/default && $(KUSTOMIZE) edit set namespace ${OPERATOR_NAMESPACE}
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
-	@echo "Operator deployed to namespace: ${OPERATOR_NAMESPACE}"
-	@echo "Kruize resources will be deployed in the same namespace: ${OPERATOR_NAMESPACE}"
 
 .PHONY: deploy-openshift
 deploy-openshift: ## Deploy operator and Kruize resources to OpenShift cluster in openshift-tuning namespace.
-	@echo "Deploying to OpenShift - operator and Kruize resources will be in openshift-tuning namespace"
 	$(MAKE) deploy OPERATOR_NAMESPACE=openshift-tuning
 
 .PHONY: deploy-minikube
 deploy-minikube: ## Deploy operator and Kruize resources to Minikube/Kind cluster in monitoring namespace.
-	@echo "Deploying to Minikube/Kind - operator and Kruize resources will be in monitoring namespace"
 	$(MAKE) deploy OPERATOR_NAMESPACE=monitoring
 
 .PHONY: undeploy
