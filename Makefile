@@ -178,9 +178,9 @@ ifndef ignore-not-found
 endif
 
 # OVERLAY defines which kustomize overlay to use for deployment
-# Default overlays: openshift (openshift-tuning namespace), minikube (monitoring namespace), kind (monitoring namespace)
+# Default overlays: openshift (openshift-tuning namespace), local (monitoring namespace for Minikube/Kind)
 # To deploy to a custom namespace, create a new overlay in config/overlays/<overlay-name>/
-# Example: make deploy OVERLAY=minikube
+# Example: make deploy OVERLAY=local
 # Example: make deploy OVERLAY=operator-demo (if you created config/overlays/operator-demo/)
 OVERLAY ?= openshift
 
@@ -194,8 +194,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: deploy
-deploy: manifests kustomize ## Deploy controller using kustomize overlays. Use OVERLAY=openshift, OVERLAY=minikube, or OVERLAY=kind (default: openshift).
-	@echo "Deploying using overlay: ${OVERLAY}"
+deploy: manifests kustomize ## Deploy controller using kustomize overlays. Use OVERLAY=openshift or OVERLAY=local (default: openshift).
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/overlays/${OVERLAY} | $(KUBECTL) apply -f -
 
@@ -205,48 +204,15 @@ deploy-openshift: ## Deploy operator to OpenShift cluster in openshift-tuning na
 
 .PHONY: deploy-minikube
 deploy-minikube: ## Deploy operator to Minikube cluster in monitoring namespace.
-	$(MAKE) deploy OVERLAY=minikube
+	$(MAKE) deploy OVERLAY=local
 
 .PHONY: deploy-kind
 deploy-kind: ## Deploy operator to Kind cluster in monitoring namespace.
-	$(MAKE) deploy OVERLAY=kind
+	$(MAKE) deploy OVERLAY=local
 
 .PHONY: undeploy
-undeploy: kustomize ## Undeploy controller. Automatically detects namespace and infers overlay, or uses OVERLAY. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	@DEPLOYMENTS=$$($(KUBECTL) get deployment -A -l control-plane=controller-manager -o jsonpath='{range .items[*]}{.metadata.namespace}{"\n"}{end}' 2>/dev/null | grep -v '^$$' || true); \
-	if [ -z "$$DEPLOYMENTS" ]; then \
-		echo "No controller-manager deployment found. Nothing to undeploy."; \
-	else \
-		DEPLOYMENT_COUNT=$$(echo "$$DEPLOYMENTS" | wc -l | tr -d ' '); \
-		if [ "$$DEPLOYMENT_COUNT" -gt 1 ]; then \
-			if [ "$(origin OVERLAY)" = "command line" ] || [ "$(origin OVERLAY)" = "environment" ]; then \
-				echo "Multiple deployments found. Using specified overlay: ${OVERLAY}"; \
-				DETECTED_OVERLAY=${OVERLAY}; \
-			else \
-				echo "Error: Multiple controller-manager deployments found in namespaces: $$DEPLOYMENTS"; \
-				echo "Please specify the overlay explicitly using OVERLAY=<overlay-name>"; \
-				exit 1; \
-			fi; \
-		else \
-			TARGET_NS="$$DEPLOYMENTS"; \
-			case "$$TARGET_NS" in \
-				openshift-tuning) DETECTED_OVERLAY=openshift ;; \
-				monitoring) \
-					if [ "${OVERLAY}" = "kind" ] || [ "${OVERLAY}" = "minikube" ]; then \
-						DETECTED_OVERLAY=${OVERLAY}; \
-					else \
-						DETECTED_OVERLAY=kind; \
-					fi; \
-				;; \
-				*) \
-					echo "Detected custom namespace: $$TARGET_NS. Using overlay: ${OVERLAY}"; \
-					DETECTED_OVERLAY=${OVERLAY}; \
-				;; \
-			esac; \
-		fi; \
-		echo "Undeploying using overlay: $$DETECTED_OVERLAY"; \
-		$(KUSTOMIZE) build config/overlays/$$DETECTED_OVERLAY | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -; \
-	fi
+undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion. Use OVERLAY=openshift or OVERLAY=local (default: openshift).
+	$(KUSTOMIZE) build config/overlays/$${OVERLAY:-openshift} | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: undeploy-openshift
 undeploy-openshift: ## Undeploy controller from OpenShift cluster in openshift-tuning namespace.
@@ -254,11 +220,11 @@ undeploy-openshift: ## Undeploy controller from OpenShift cluster in openshift-t
 
 .PHONY: undeploy-minikube
 undeploy-minikube: ## Undeploy controller from Minikube cluster in monitoring namespace.
-	$(MAKE) undeploy OVERLAY=minikube
+	$(MAKE) undeploy OVERLAY=local
 
 .PHONY: undeploy-kind
 undeploy-kind: ## Undeploy controller from Kind cluster in monitoring namespace.
-	$(MAKE) undeploy OVERLAY=kind
+	$(MAKE) undeploy OVERLAY=local
 
 ##@ Dependencies
 
