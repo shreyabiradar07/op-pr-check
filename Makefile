@@ -213,27 +213,40 @@ deploy-kind: ## Deploy operator to Kind cluster in monitoring namespace.
 
 .PHONY: undeploy
 undeploy: kustomize ## Undeploy controller. Automatically detects namespace and infers overlay, or uses OVERLAY. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	@TARGET_NS=$$($(KUBECTL) get deployment -A -l control-plane=controller-manager -o jsonpath='{.items[0].metadata.namespace}' 2>/dev/null); \
-	if [ -z "$$TARGET_NS" ]; then \
-		DETECTED_OVERLAY=${OVERLAY}; \
+	@DEPLOYMENTS=$$($(KUBECTL) get deployment -A -l control-plane=controller-manager -o jsonpath='{range .items[*]}{.metadata.namespace}{"\n"}{end}' 2>/dev/null | grep -v '^$$' || true); \
+	if [ -z "$$DEPLOYMENTS" ]; then \
+		echo "No controller-manager deployment found. Nothing to undeploy."; \
 	else \
-		case "$$TARGET_NS" in \
-			openshift-tuning) DETECTED_OVERLAY=openshift ;; \
-			monitoring) \
-				if [ "${OVERLAY}" = "kind" ] || [ "${OVERLAY}" = "minikube" ]; then \
-					DETECTED_OVERLAY=${OVERLAY}; \
-				else \
-					DETECTED_OVERLAY=kind; \
-				fi; \
-			;; \
-			*) \
-				echo "Detected custom namespace: $$TARGET_NS. Using overlay: ${OVERLAY}"; \
+		DEPLOYMENT_COUNT=$$(echo "$$DEPLOYMENTS" | wc -l | tr -d ' '); \
+		if [ "$$DEPLOYMENT_COUNT" -gt 1 ]; then \
+			if [ "$(origin OVERLAY)" = "command line" ] || [ "$(origin OVERLAY)" = "environment" ]; then \
+				echo "Multiple deployments found. Using specified overlay: ${OVERLAY}"; \
 				DETECTED_OVERLAY=${OVERLAY}; \
-			;; \
-		esac; \
-	fi; \
-	echo "Undeploying using overlay: $$DETECTED_OVERLAY"; \
-	$(KUSTOMIZE) build config/overlays/$$DETECTED_OVERLAY | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+			else \
+				echo "Error: Multiple controller-manager deployments found in namespaces: $$DEPLOYMENTS"; \
+				echo "Please specify the overlay explicitly using OVERLAY=<overlay-name>"; \
+				exit 1; \
+			fi; \
+		else \
+			TARGET_NS="$$DEPLOYMENTS"; \
+			case "$$TARGET_NS" in \
+				openshift-tuning) DETECTED_OVERLAY=openshift ;; \
+				monitoring) \
+					if [ "${OVERLAY}" = "kind" ] || [ "${OVERLAY}" = "minikube" ]; then \
+						DETECTED_OVERLAY=${OVERLAY}; \
+					else \
+						DETECTED_OVERLAY=kind; \
+					fi; \
+				;; \
+				*) \
+					echo "Detected custom namespace: $$TARGET_NS. Using overlay: ${OVERLAY}"; \
+					DETECTED_OVERLAY=${OVERLAY}; \
+				;; \
+			esac; \
+		fi; \
+		echo "Undeploying using overlay: $$DETECTED_OVERLAY"; \
+		$(KUSTOMIZE) build config/overlays/$$DETECTED_OVERLAY | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -; \
+	fi
 
 .PHONY: undeploy-openshift
 undeploy-openshift: ## Undeploy controller from OpenShift cluster in openshift-tuning namespace.
