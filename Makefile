@@ -212,7 +212,7 @@ deploy-kind: ## Deploy operator to Kind cluster in monitoring namespace.
 
 .PHONY: undeploy
 undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion. Use OVERLAY=openshift or OVERLAY=local (default: openshift).
-	$(KUSTOMIZE) build config/overlays/$${OVERLAY:-openshift} | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	$(KUSTOMIZE) build config/overlays/${OVERLAY} | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: undeploy-openshift
 undeploy-openshift: ## Undeploy controller from OpenShift cluster in openshift-tuning namespace.

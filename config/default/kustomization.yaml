@@ -1,8 +1,9 @@
 # Adds namespace to all resources.
-# For OpenShift: use openshift-tuning
-# For Minikube/Kind: use monitoring
-# This base namespace is typically overridden by overlay kustomizations (selected via Makefile targets)
-namespace: openshift-tuning
+# Default namespace for base configuration (platform-neutral)
+# This is overridden by overlay kustomizations (selected via Makefile targets):
+# - For OpenShift: openshift-tuning (config/overlays/openshift)
+# - For Minikube/Kind: monitoring (config/overlays/local)
+namespace: default
 
 # Value of this field is prepended to the
 # names of all resources, e.g. a deployment named
