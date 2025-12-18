@@ -1,7 +1,7 @@
 # Adds namespace to all resources.
 # For OpenShift: use openshift-tuning
 # For Minikube/Kind: use monitoring
-# This will be overridden by the Makefile targets
+# This base namespace is typically overridden by overlay kustomizations (selected via Makefile targets)
 namespace: openshift-tuning
 
 # Value of this field is prepended to the
