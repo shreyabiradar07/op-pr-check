@@ -29,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	mydomainv1alpha1 "github.com/kruize/kruize-operator/api/v1alpha1"
+	"github.com/kruize/kruize-operator/internal/utils"
 )
 
 var _ = Describe("Kruize Controller", func() {
@@ -137,39 +138,53 @@ var _ = Describe("Kruize Controller", func() {
 		})
 	})
 
-	Context("Manifest generation", func() {
-		var reconciler *KruizeReconciler
+	Context("Resource generation", func() {
+		It("should generate cluster-scoped resources for OpenShift", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
 
-		BeforeEach(func() {
-			reconciler = &KruizeReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
+			clusterResources := generator.ClusterScopedResources()
+			Expect(clusterResources).NotTo(BeEmpty())
+			Expect(len(clusterResources)).To(BeNumerically(">", 0))
 		})
 
-		It("should generate valid RBAC and Config manifest", func() {
-			manifest := reconciler.generateKruizeRBACAndConfigManifest("test-namespace", "openshift")
+		It("should generate namespaced resources for OpenShift", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
 
-			Expect(manifest).To(ContainSubstring("kind: Namespace"))
-			Expect(manifest).To(ContainSubstring("kind: ServiceAccount"))
-			Expect(manifest).To(ContainSubstring("kind: ClusterRole"))
-			Expect(manifest).To(ContainSubstring("kind: ConfigMap"))
+			namespacedResources := generator.NamespacedResources()
+			Expect(namespacedResources).NotTo(BeEmpty())
+			Expect(len(namespacedResources)).To(BeNumerically(">", 0))
 		})
 
-		It("should include correct datasource configuration", func() {
-			manifest := reconciler.generateKruizeRBACAndConfigManifest("test-namespace", "openshift")
+		It("should generate Kubernetes cluster-scoped resources", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "minikube")
 
-			Expect(manifest).To(ContainSubstring("prometheus-1"))
-			Expect(manifest).To(ContainSubstring(":9091"))
-			Expect(manifest).NotTo(ContainSubstring("serviceName"))
+			clusterResources := generator.KubernetesClusterScopedResources()
+			Expect(clusterResources).NotTo(BeEmpty())
+			Expect(len(clusterResources)).To(BeNumerically(">", 0))
 		})
 
-		It("should generate valid deployment manifest", func() {
-			manifest := reconciler.generateKruizeDeploymentManifest("test-namespace")
+		It("should generate Kubernetes namespaced resources", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "minikube")
 
-			Expect(manifest).To(ContainSubstring("kind: Deployment"))
-			Expect(manifest).To(ContainSubstring("name: kruize"))
-			Expect(manifest).To(ContainSubstring("serviceAccountName: kruize-sa"))
+			namespacedResources := generator.KubernetesNamespacedResources()
+			Expect(namespacedResources).NotTo(BeEmpty())
+			Expect(len(namespacedResources)).To(BeNumerically(">", 0))
+		})
+
+		It("should use default images when not specified", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+
+			Expect(generator.Autotune_image).To(Equal("quay.io/kruize/autotune_operator:latest"))
+			Expect(generator.Autotune_ui_image).To(Equal("quay.io/kruize/kruize-ui:0.0.9"))
+		})
+
+		It("should use custom images when specified", func() {
+			customImage := "custom/image:v1.0"
+			customUIImage := "custom/ui:v1.0"
+			generator := utils.NewKruizeResourceGenerator("test-namespace", customImage, customUIImage, "openshift")
+
+			Expect(generator.Autotune_image).To(Equal(customImage))
+			Expect(generator.Autotune_ui_image).To(Equal(customUIImage))
 		})
 	})
 

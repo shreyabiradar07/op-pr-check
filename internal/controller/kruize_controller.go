@@ -243,6 +243,20 @@ func (r *KruizeReconciler) deployKruize(ctx context.Context, kruize *mydomainv1a
 	fmt.Printf("=== END DEBUG ===\n")
 
 	cluster_type := kruize.Spec.Cluster_type
+	
+	// Validate cluster type
+	validClusterTypes := []string{"openshift", "minikube", "kind"}
+	isValid := false
+	for _, validType := range validClusterTypes {
+		if cluster_type == validType {
+			isValid = true
+			break
+		}
+	}
+	if !isValid {
+		return fmt.Errorf("unsupported cluster type: %s. Supported types are: openshift, minikube, kind", cluster_type)
+	}
+	
 	fmt.Println("Deploying Kruize for cluster type:", cluster_type)
 
 	var autotune_ns = kruize.Spec.Namespace
