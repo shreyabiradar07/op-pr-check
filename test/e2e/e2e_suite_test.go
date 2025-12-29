@@ -17,8 +17,8 @@ limitations under the License.
 package e2e
 
 import (
+	"flag"
 	"fmt"
-	"os"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -27,7 +27,7 @@ import (
 	"github.com/kruize/kruize-operator/test/utils"
 )
 
-// Test parameters that can be set via environment variables
+// Test parameters that can be set via command-line flags
 var (
 	clusterType   string
 	namespace     string
@@ -36,15 +36,16 @@ var (
 	kruizeUIImage string
 )
 
-var _ = BeforeSuite(func() {
-	// Get cluster type from environment variable, default to "kind"
-	clusterType = os.Getenv("CLUSTER_TYPE")
-	if clusterType == "" {
-		clusterType = "kind"
-	}
+func init() {
+	flag.StringVar(&clusterType, "cluster-type", "kind", "Cluster type: kind, minikube, or openshift")
+	flag.StringVar(&namespace, "namespace", "", "Target namespace for Kruize deployment (default: auto-detected based on cluster type)")
+	flag.StringVar(&operatorImage, "operator-image", "", "Operator image (default: read from Makefile)")
+	flag.StringVar(&kruizeImage, "kruize-image", "", "Kruize/Autotune image (optional)")
+	flag.StringVar(&kruizeUIImage, "kruize-ui-image", "", "Kruize UI image (optional)")
+}
 
-	// Get namespace from environment variable, default based on cluster type
-	namespace = os.Getenv("KRUIZE_NAMESPACE")
+var _ = BeforeSuite(func() {
+	// Auto-detect namespace if not specified via flag
 	if namespace == "" {
 		if clusterType == "openshift" {
 			namespace = "openshift-tuning"
@@ -53,23 +54,15 @@ var _ = BeforeSuite(func() {
 		}
 	}
 
-	// Get operator image from environment or use Makefile default
-	operatorImage = os.Getenv("OPERATOR_IMAGE")
+	// Get operator image from Makefile if not specified via flag
 	if operatorImage == "" {
-		// Get default from Makefile
 		var err error
-		operatorImage, err = utils.GetDefaultOperatorImage()
+		operatorImage, err = utils.ExtractImageFromMakefile()
 		if err != nil {
-			fmt.Fprintf(GinkgoWriter, "Warning: failed to get operator image from Makefile: %v, using fallback\n", err)
+			// Use default if Makefile not found
 			operatorImage = "quay.io/kruize/kruize-operator:0.0.2"
 		}
 	}
-
-	// Get Kruize (autotune) image from environment (optional)
-	kruizeImage = os.Getenv("KRUIZE_IMAGE")
-
-	// Get Kruize UI image from environment (optional)
-	kruizeUIImage = os.Getenv("KRUIZE_UI_IMAGE")
 
 	fmt.Fprintf(GinkgoWriter, "Running e2e tests with cluster_type=%s, namespace=%s, operator_image=%s, kruize_image=%s, kruize_ui_image=%s\n",
 		clusterType, namespace, operatorImage, kruizeImage, kruizeUIImage)
