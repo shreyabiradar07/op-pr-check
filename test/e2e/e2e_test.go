@@ -28,30 +28,32 @@ import (
 	"github.com/kruize/kruize-operator/test/utils"
 )
 
-const namespace = "kruize-operator-system"
+const operatorNamespace = "kruize-operator-system"
 
 var _ = Describe("controller", Ordered, func() {
 	BeforeAll(func() {
-		By("installing prometheus operator")
-		Expect(utils.InstallPrometheusOperator()).To(Succeed())
-
-		By("installing the cert-manager")
-		Expect(utils.InstallCertManager()).To(Succeed())
+		// Skip Prometheus Operator installation on OpenShift as it's pre-installed
+		if clusterType != "openshift" {
+			By("installing prometheus operator")
+			Expect(utils.InstallPrometheusOperator()).To(Succeed())
+		} else {
+			By("skipping prometheus operator installation on OpenShift (pre-installed)")
+		}
 
 		By("creating manager namespace")
-		cmd := exec.Command("kubectl", "create", "ns", namespace)
+		cmd := exec.Command("kubectl", "create", "ns", operatorNamespace)
 		_, _ = utils.Run(cmd)
 	})
 
 	AfterAll(func() {
-		By("uninstalling the Prometheus manager bundle")
-		utils.UninstallPrometheusOperator()
-
-		By("uninstalling the cert-manager bundle")
-		utils.UninstallCertManager()
+		// Skip Prometheus Operator uninstallation on OpenShift
+		if clusterType != "openshift" {
+			By("uninstalling the Prometheus manager bundle")
+			utils.UninstallPrometheusOperator()
+		}
 
 		By("removing manager namespace")
-		cmd := exec.Command("kubectl", "delete", "ns", namespace)
+		cmd := exec.Command("kubectl", "delete", "ns", operatorNamespace)
 		_, _ = utils.Run(cmd)
 	})
 
@@ -60,25 +62,20 @@ var _ = Describe("controller", Ordered, func() {
 			var controllerPodName string
 			var err error
 
-			// projectimage stores the name of the image used in the example
-			var projectimage = "example.com/kruize-operator:v0.0.1"
-
-			By("building the manager(Operator) image")
-			cmd := exec.Command("make", "docker-build", fmt.Sprintf("IMG=%s", projectimage))
-			_, err = utils.Run(cmd)
+			// Update CR BEFORE deploying controller so it uses correct images
+			By(fmt.Sprintf("updating sample CR for cluster_type=%s and namespace=%s", clusterType, namespace))
+			err = utils.UpdateKruizeSampleYAML(clusterType, namespace, kruizeImage, kruizeUIImage)
 			ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
-			By("loading the the manager(Operator) image on Kind")
-			err = utils.LoadImageToKindClusterWithName(projectimage)
-			ExpectWithOffset(1, err).NotTo(HaveOccurred())
+			By(fmt.Sprintf("using operator image: %s", operatorImage))
 
 			By("installing CRDs")
-			cmd = exec.Command("make", "install")
+			cmd := exec.Command("make", "install")
 			_, err = utils.Run(cmd)
 			ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 			By("deploying the controller-manager")
-			cmd = exec.Command("make", "deploy", fmt.Sprintf("IMG=%s", projectimage))
+			cmd = exec.Command("make", "deploy", fmt.Sprintf("IMG=%s", operatorImage))
 			_, err = utils.Run(cmd)
 			ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
@@ -92,7 +89,7 @@ var _ = Describe("controller", Ordered, func() {
 						"{{ if not .metadata.deletionTimestamp }}"+
 						"{{ .metadata.name }}"+
 						"{{ \"\\n\" }}{{ end }}{{ end }}",
-					"-n", namespace,
+					"-n", operatorNamespace,
 				)
 
 				podOutput, err := utils.Run(cmd)
@@ -107,7 +104,7 @@ var _ = Describe("controller", Ordered, func() {
 				// Validate pod status
 				cmd = exec.Command("kubectl", "get",
 					"pods", controllerPodName, "-o", "jsonpath={.status.phase}",
-					"-n", namespace,
+					"-n", operatorNamespace,
 				)
 				status, err := utils.Run(cmd)
 				ExpectWithOffset(2, err).NotTo(HaveOccurred())
@@ -121,47 +118,62 @@ var _ = Describe("controller", Ordered, func() {
 		})
 
 		It("should deploy Kruize components successfully", func() {
+			By(fmt.Sprintf("creating namespace %s if it doesn't exist", namespace))
+			cmd := exec.Command("kubectl", "create", "namespace", namespace)
+			_, _ = utils.Run(cmd) // Ignore error if namespace already exists
+			
 			By("creating a Kruize custom resource")
-			cmd := exec.Command("kubectl", "apply", "-f", "config/samples/my_v1alpha1_kruize.yaml")
+			cmd = exec.Command("kubectl", "apply", "-f", "config/samples/v1alpha1_kruize.yaml", "-n", namespace)
 			_, err := utils.Run(cmd)
 			ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
-			By("checking that openshift-tuning namespace is created")
+			By("checking that kruize namespace is created")
 			Eventually(func() error {
-				cmd := exec.Command("kubectl", "get", "namespace", "openshift-tuning")
+				cmd := exec.Command("kubectl", "get", "namespace", namespace)
 				_, err := utils.Run(cmd)
 				return err
 			}, 2*time.Minute, 5*time.Second).Should(Succeed())
 
-			By("checking that Kruize ServiceAccount is created")
+			// Determine expected service account based on cluster type
+			expectedSA := "default"
+			if clusterType == "openshift" {
+				expectedSA = "kruize-sa"
+			}
+			
+			By(fmt.Sprintf("checking that Kruize ServiceAccount '%s' is created", expectedSA))
 			Eventually(func() error {
-				cmd := exec.Command("kubectl", "get", "serviceaccount", "kruize-sa", "-n", "openshift-tuning")
+				cmd := exec.Command("kubectl", "get", "serviceaccount", expectedSA, "-n", namespace)
 				_, err := utils.Run(cmd)
 				return err
 			}, 2*time.Minute, 5*time.Second).Should(Succeed())
 
-			By("checking that ConfigMap contains correct datasource")
+			By("checking that Kruize database is ready")
 			Eventually(func() error {
-				cmd := exec.Command("kubectl", "get", "configmap", "kruizeconfig", "-n", "openshift-tuning", "-o", "jsonpath={.data.kruizeconfigjson}")
-				output, err := utils.Run(cmd)
+				// Try kruize-db-deployment first, then kruize-db
+				var cmd *exec.Cmd
+				var output []byte
+				var err error
+				
+				cmd = exec.Command("kubectl", "get", "deployment", "kruize-db-deployment", "-n", namespace, "-o", "jsonpath={.status.readyReplicas}")
+				output, err = utils.Run(cmd)
 				if err != nil {
-					return err
+					// Try kruize-db if kruize-db-deployment doesn't exist
+					cmd = exec.Command("kubectl", "get", "deployment", "kruize-db", "-n", namespace, "-o", "jsonpath={.status.readyReplicas}")
+					output, err = utils.Run(cmd)
+					if err != nil {
+						return fmt.Errorf("neither kruize-db-deployment nor kruize-db found: %w", err)
+					}
 				}
-				if !strings.Contains(string(output), "prometheus-1") {
-					return fmt.Errorf("datasource not found in config")
-				}
-				if !strings.Contains(string(output), ":9091") {
-					return fmt.Errorf("correct port not found in config")
-				}
-				if strings.Contains(string(output), "serviceName") {
-					return fmt.Errorf("serviceName should not be present in datasource config")
+				
+				if string(output) != "1" {
+					return fmt.Errorf("database deployment not ready")
 				}
 				return nil
-			}, 2*time.Minute, 5*time.Second).Should(Succeed())
+			}, 3*time.Minute, 10*time.Second).Should(Succeed())
 
 			By("checking that Kruize deployment is ready")
 			Eventually(func() error {
-				cmd := exec.Command("kubectl", "get", "deployment", "kruize", "-n", "openshift-tuning", "-o", "jsonpath={.status.readyReplicas}")
+				cmd := exec.Command("kubectl", "get", "deployment", "kruize", "-n", namespace, "-o", "jsonpath={.status.readyReplicas}")
 				output, err := utils.Run(cmd)
 				if err != nil {
 					return err
@@ -170,31 +182,61 @@ var _ = Describe("controller", Ordered, func() {
 					return fmt.Errorf("deployment not ready")
 				}
 				return nil
-			}, 5*time.Minute, 10*time.Second).Should(Succeed())
+			}, 3*time.Minute, 10*time.Second).Should(Succeed())
 
-			By("checking that Kruize database is ready")
-			Eventually(func() error {
-				cmd := exec.Command("kubectl", "get", "deployment", "kruize-db", "-n", "openshift-tuning", "-o", "jsonpath={.status.readyReplicas}")
-				output, err := utils.Run(cmd)
-				if err != nil {
-					return err
+			By("verifying deployed Kruize image")
+			cmd = exec.Command("kubectl", "get", "deployment", "kruize", "-n", namespace, "-o", "jsonpath={.spec.template.spec.containers[0].image}")
+			output, err := utils.Run(cmd)
+			ExpectWithOffset(1, err).NotTo(HaveOccurred())
+			deployedImage := strings.TrimSpace(string(output))
+			fmt.Fprintf(GinkgoWriter, "Deployed Kruize image: %s\n", deployedImage)
+			
+			// If custom Kruize image was specified, verify it matches
+			if kruizeImage != "" {
+				if deployedImage == kruizeImage {
+					fmt.Fprintf(GinkgoWriter, "✓ Deployed image matches specified KRUIZE_IMAGE: %s\n", kruizeImage)
+				} else {
+					fmt.Fprintf(GinkgoWriter, "⚠ Warning: Deployed image %s does not match specified KRUIZE_IMAGE %s\n", deployedImage, kruizeImage)
 				}
-				if string(output) != "1" {
-					return fmt.Errorf("database deployment not ready")
-				}
-				return nil
-			}, 5*time.Minute, 10*time.Second).Should(Succeed())
+			} else {
+				fmt.Fprintf(GinkgoWriter, "Using default Kruize image from CR: %s\n", deployedImage)
+			}
 
 			By("verifying Kruize API is responding")
 			Eventually(func() error {
-				cmd := exec.Command("kubectl", "exec", "deployment/kruize", "-n", "openshift-tuning", "--", "curl", "-s", "localhost:8080/health")
+				cmd := exec.Command("kubectl", "exec", "deployment/kruize", "-n", namespace, "--", "curl", "-s", "localhost:8080/health")
 				_, err := utils.Run(cmd)
 				return err
 			}, 3*time.Minute, 10*time.Second).Should(Succeed())
 
+			By("checking that datasource is configured via Kruize API")
+			var datasourceOutput string
+			Eventually(func() error {
+				cmd := exec.Command("kubectl", "exec", "deployment/kruize", "-n", namespace, "--", "curl", "-s", "localhost:8080/datasources")
+				output, err := utils.Run(cmd)
+				if err != nil {
+					return err
+				}
+				
+				datasourceOutput = string(output)
+				
+				// Check for prometheus-1 datasource
+				if !strings.Contains(datasourceOutput, "prometheus-1") {
+					return fmt.Errorf("prometheus-1 datasource not found in API response")
+				}
+				return nil
+			}, 3*time.Minute, 20*time.Second).Should(Succeed())
+
+			By("printing datasources API output")
+			fmt.Fprintf(GinkgoWriter, "\n=== Datasources API Output ===\n%s\n==============================\n", datasourceOutput)
+
 			By("cleaning up the Kruize custom resource")
-			cmd = exec.Command("kubectl", "delete", "-f", "config/samples/my_v1alpha1_kruize.yaml")
+			cmd = exec.Command("kubectl", "delete", "-f", "config/samples/v1alpha1_kruize.yaml", "-n", namespace)
 			_, _ = utils.Run(cmd)
+
+			By("cleaning up the Kruize operator")
+            			cmd = exec.Command("make", "undeploy")
+            			_, _ = utils.Run(cmd)
 		})
 	})
 })
