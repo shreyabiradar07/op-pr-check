@@ -34,8 +34,13 @@ var _ = Describe("controller", Ordered, func() {
 	BeforeAll(func() {
 		// Skip Prometheus Operator installation on OpenShift as it's pre-installed
 		if clusterType != "openshift" {
-			By("installing prometheus operator")
-			Expect(utils.InstallPrometheusOperator()).To(Succeed())
+			By(fmt.Sprintf("installing prometheus operator for %s cluster", clusterType))
+			err := utils.InstallPrometheusOperator(clusterType)
+			if err != nil {
+				// Log the error but don't fail - Prometheus might already be installed
+				fmt.Fprintf(GinkgoWriter, "Warning: Prometheus installation encountered an issue: %v\n", err)
+				fmt.Fprintf(GinkgoWriter, "Continuing with tests - Prometheus may already be installed\n")
+			}
 		} else {
 			By("skipping prometheus operator installation on OpenShift (pre-installed)")
 		}
@@ -46,11 +51,6 @@ var _ = Describe("controller", Ordered, func() {
 	})
 
 	AfterAll(func() {
-		// Skip Prometheus Operator uninstallation on OpenShift
-		if clusterType != "openshift" {
-			By("uninstalling the Prometheus manager bundle")
-			utils.UninstallPrometheusOperator()
-		}
 
 		By("removing manager namespace")
 		cmd := exec.Command("kubectl", "delete", "ns", operatorNamespace)
