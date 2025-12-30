@@ -142,6 +142,8 @@ func InstallPrometheusOperator(clusterType string) error {
 
 	// Step 5: Wait for Prometheus pods to be running
 	fmt.Fprintf(GinkgoWriter, "Waiting for Prometheus pods to be ready...\n")
+
+	time.Sleep(60 * time.Second)
 	
 	// Wait for prometheus-k8s statefulset to be ready
 	maxRetries := 60 // 5 minutes (60 * 5 seconds)
