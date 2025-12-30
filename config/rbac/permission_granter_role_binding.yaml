@@ -8,7 +8,9 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: controller-manager
-    namespace: kruize-operator-system
+    # namespace: system is a placeholder that kustomize automatically transforms
+    # to the target namespace (monitoring, openshift-tuning, etc.) during build
+    namespace: system
 roleRef:
   kind: ClusterRole
   name: permission-granter
