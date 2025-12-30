@@ -254,7 +254,7 @@ func (r *KruizeReconciler) deployKruize(ctx context.Context, kruize *mydomainv1a
 		}
 	}
 	if !isValid {
-		return fmt.Errorf("unsupported cluster type: %s. Supported types are: openshift, minikube, kind", cluster_type)
+		return fmt.Errorf("unsupported cluster type: %s. Supported types are: %s", cluster_type, strings.Join(validClusterTypes, ", "))
 	}
 	
 	fmt.Println("Deploying Kruize for cluster type:", cluster_type)

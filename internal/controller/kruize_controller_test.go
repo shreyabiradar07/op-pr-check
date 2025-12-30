@@ -26,6 +26,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -107,6 +108,70 @@ var _ = Describe("Kruize Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
+		It("should handle minikube cluster type", func() {
+			kruize := &mydomainv1alpha1.Kruize{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-kruize-minikube",
+					Namespace: "default",
+				},
+				Spec: mydomainv1alpha1.KruizeSpec{
+					Cluster_type: "minikube",
+					Namespace:    "kruize",
+					Size:         1,
+				},
+			}
+			Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
+
+			defer func() {
+				Expect(k8sClient.Delete(ctx, kruize)).To(Succeed())
+			}()
+
+			controllerReconciler := &KruizeReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      "test-kruize-minikube",
+					Namespace: "default",
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("should handle kind cluster type", func() {
+			kruize := &mydomainv1alpha1.Kruize{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-kruize-kind",
+					Namespace: "default",
+				},
+				Spec: mydomainv1alpha1.KruizeSpec{
+					Cluster_type: "kind",
+					Namespace:    "kruize",
+					Size:         1,
+				},
+			}
+			Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
+
+			defer func() {
+				Expect(k8sClient.Delete(ctx, kruize)).To(Succeed())
+			}()
+
+			controllerReconciler := &KruizeReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      "test-kruize-kind",
+					Namespace: "default",
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+		})
+
 		It("should reject unsupported cluster types", func() {
 			kruize := &mydomainv1alpha1.Kruize{
 				ObjectMeta: metav1.ObjectMeta{
@@ -137,6 +202,228 @@ var _ = Describe("Kruize Controller", func() {
 				},
 			})
 			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("unsupported cluster type"))
+			Expect(err.Error()).To(ContainSubstring("invalid-cluster"))
+		})
+
+		It("should reject empty cluster type", func() {
+			kruize := &mydomainv1alpha1.Kruize{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-kruize-empty",
+					Namespace: "default",
+				},
+				Spec: mydomainv1alpha1.KruizeSpec{
+					Cluster_type: "",
+					Namespace:    "test",
+					Size:         1,
+				},
+			}
+			Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
+
+			defer func() {
+				Expect(k8sClient.Delete(ctx, kruize)).To(Succeed())
+			}()
+
+			controllerReconciler := &KruizeReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      "test-kruize-empty",
+					Namespace: "default",
+				},
+			})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("unsupported cluster type"))
+		})
+
+		It("should reject cluster type with wrong case", func() {
+			kruize := &mydomainv1alpha1.Kruize{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-kruize-wrongcase",
+					Namespace: "default",
+				},
+				Spec: mydomainv1alpha1.KruizeSpec{
+					Cluster_type: "OpenShift", // Wrong case
+					Namespace:    "test",
+					Size:         1,
+				},
+			}
+			Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
+
+			defer func() {
+				Expect(k8sClient.Delete(ctx, kruize)).To(Succeed())
+			}()
+
+			controllerReconciler := &KruizeReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      "test-kruize-wrongcase",
+					Namespace: "default",
+				},
+			})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("unsupported cluster type"))
+			Expect(err.Error()).To(ContainSubstring("OpenShift"))
+		})
+
+		It("should include supported types in error message", func() {
+			kruize := &mydomainv1alpha1.Kruize{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-kruize-unknown",
+					Namespace: "default",
+				},
+				Spec: mydomainv1alpha1.KruizeSpec{
+					Cluster_type: "unknown",
+					Namespace:    "test",
+					Size:         1,
+				},
+			}
+			Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
+
+			defer func() {
+				Expect(k8sClient.Delete(ctx, kruize)).To(Succeed())
+			}()
+
+			controllerReconciler := &KruizeReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      "test-kruize-unknown",
+					Namespace: "default",
+				},
+			})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("Supported types are:"))
+		})
+
+		It("should not create resources for unsupported cluster type like gke", func() {
+			testNamespace := "test-gke-namespace"
+			kruize := &mydomainv1alpha1.Kruize{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-kruize-gke",
+					Namespace: "default",
+				},
+				Spec: mydomainv1alpha1.KruizeSpec{
+					Cluster_type: "gke", // Unsupported cluster type
+					Namespace:    testNamespace,
+					Size:         1,
+				},
+			}
+			Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
+
+			defer func() {
+				Expect(k8sClient.Delete(ctx, kruize)).To(Succeed())
+			}()
+
+			controllerReconciler := &KruizeReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			// Attempt reconciliation - should fail with validation error
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      "test-kruize-gke",
+					Namespace: "default",
+				},
+			})
+			
+			// Verify error is returned
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("unsupported cluster type"))
+			Expect(err.Error()).To(ContainSubstring("gke"))
+
+			// Verify no namespace was created for Kruize components
+			namespaceList := &corev1.NamespaceList{}
+			err = k8sClient.List(ctx, namespaceList)
+			Expect(err).NotTo(HaveOccurred())
+			
+			namespaceExists := false
+			for _, ns := range namespaceList.Items {
+				if ns.Name == testNamespace {
+					namespaceExists = true
+					break
+				}
+			}
+			Expect(namespaceExists).To(BeFalse(), "Namespace should not be created for invalid cluster type")
+
+			// Verify no deployments were created in the test namespace
+			deploymentList := &appsv1.DeploymentList{}
+			err = k8sClient.List(ctx, deploymentList, client.InNamespace(testNamespace))
+			// Either namespace doesn't exist (error) or no deployments found
+			if err == nil {
+				Expect(deploymentList.Items).To(BeEmpty(), "No deployments should be created for invalid cluster type")
+			}
+
+			// Verify no services were created in the test namespace
+			serviceList := &corev1.ServiceList{}
+			err = k8sClient.List(ctx, serviceList, client.InNamespace(testNamespace))
+			// Either namespace doesn't exist (error) or no services found
+			if err == nil {
+				Expect(serviceList.Items).To(BeEmpty(), "No services should be created for invalid cluster type")
+			}
+		})
+
+		It("should not create resources for another unsupported cluster type like eks", func() {
+			testNamespace := "test-eks-namespace"
+			kruize := &mydomainv1alpha1.Kruize{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-kruize-eks",
+					Namespace: "default",
+				},
+				Spec: mydomainv1alpha1.KruizeSpec{
+					Cluster_type: "eks", // Another unsupported cluster type
+					Namespace:    testNamespace,
+					Size:         1,
+				},
+			}
+			Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
+
+			defer func() {
+				Expect(k8sClient.Delete(ctx, kruize)).To(Succeed())
+			}()
+
+			controllerReconciler := &KruizeReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			// Attempt reconciliation - should fail early with validation error before creating any resources
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      "test-kruize-eks",
+					Namespace: "default",
+				},
+			})
+			
+			// Verify validation error is returned with correct message
+			Expect(err).To(HaveOccurred(), "Reconciliation should fail for unsupported cluster type")
+			Expect(err.Error()).To(ContainSubstring("unsupported cluster type"), "Error should indicate unsupported cluster type")
+			Expect(err.Error()).To(ContainSubstring("eks"), "Error should mention the specific invalid cluster type")
+
+			// Verify no child resources were created (validation should fail before resource creation)
+			namespaceList := &corev1.NamespaceList{}
+			err = k8sClient.List(ctx, namespaceList)
+			Expect(err).NotTo(HaveOccurred())
+			
+			namespaceExists := false
+			for _, ns := range namespaceList.Items {
+				if ns.Name == testNamespace {
+					namespaceExists = true
+					break
+				}
+			}
+			Expect(namespaceExists).To(BeFalse(), "Namespace should not be created for invalid cluster type")
 		})
 	})
 
