@@ -23,6 +23,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -185,6 +187,338 @@ var _ = Describe("Kruize Controller", func() {
 
 			Expect(generator.Autotune_image).To(Equal(customImage))
 			Expect(generator.Autotune_ui_image).To(Equal(customUIImage))
+		})
+	})
+
+	Context("RBAC and ConfigMap manifest generation", func() {
+		It("should generate RBAC manifests correctly for OpenShift", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+
+			clusterResources := generator.ClusterScopedResources()
+			
+			// Check that RBAC resources are present
+			var hasClusterRole, hasClusterRoleBinding bool
+			for _, resource := range clusterResources {
+				kind := resource.GetObjectKind().GroupVersionKind().Kind
+				if kind == "ClusterRole" {
+					hasClusterRole = true
+				}
+				if kind == "ClusterRoleBinding" {
+					hasClusterRoleBinding = true
+				}
+			}
+			
+			Expect(hasClusterRole).To(BeTrue(), "ClusterRole should be generated")
+			Expect(hasClusterRoleBinding).To(BeTrue(), "ClusterRoleBinding should be generated")
+		})
+
+		It("should generate RBAC manifests correctly for Kubernetes", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "minikube")
+
+			clusterResources := generator.KubernetesClusterScopedResources()
+			
+			// Check that RBAC resources are present
+			var hasClusterRole, hasClusterRoleBinding bool
+			for _, resource := range clusterResources {
+				kind := resource.GetObjectKind().GroupVersionKind().Kind
+				if kind == "ClusterRole" {
+					hasClusterRole = true
+				}
+				if kind == "ClusterRoleBinding" {
+					hasClusterRoleBinding = true
+				}
+			}
+			
+			Expect(hasClusterRole).To(BeTrue(), "ClusterRole should be generated")
+			Expect(hasClusterRoleBinding).To(BeTrue(), "ClusterRoleBinding should be generated")
+		})
+
+		It("should generate ConfigMap correctly for OpenShift", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+
+			configMap := generator.KruizeConfigMap()
+			Expect(configMap).NotTo(BeNil())
+			Expect(configMap.GetName()).To(Equal("kruizeconfig"))
+			Expect(configMap.GetNamespace()).To(Equal("test-namespace"))
+			Expect(configMap.Data).NotTo(BeEmpty())
+		})
+
+		It("should generate ConfigMap correctly for Kubernetes", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "minikube")
+
+			configMap := generator.KruizeConfigMapKubernetes()
+			Expect(configMap).NotTo(BeNil())
+			Expect(configMap.GetName()).To(Equal("kruizeconfig"))
+			Expect(configMap.GetNamespace()).To(Equal("test-namespace"))
+			Expect(configMap.Data).NotTo(BeEmpty())
+		})
+	})
+
+	Context("Data source configuration validation", func() {
+		It("should have valid data source configuration in ConfigMap for OpenShift", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+
+			configMap := generator.KruizeConfigMap()
+			Expect(configMap.Data).To(HaveKey("kruizeconfigjson"))
+			
+			// Verify the config contains expected data source fields
+			configData := configMap.Data["kruizeconfigjson"]
+			Expect(configData).To(ContainSubstring("datasource"))
+		})
+
+		It("should have valid data source configuration in ConfigMap for Kubernetes", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "minikube")
+
+			configMap := generator.KruizeConfigMapKubernetes()
+			Expect(configMap.Data).To(HaveKey("kruizeconfigjson"))
+			
+			// Verify the config contains expected data source fields
+			configData := configMap.Data["kruizeconfigjson"]
+			Expect(configData).To(ContainSubstring("datasource"))
+		})
+	})
+
+	Context("Kruize deployment manifest generation", func() {
+		It("should generate valid Kruize deployment manifest for OpenShift", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+
+			namespacedResources := generator.NamespacedResources()
+			
+			// Check for Deployment resources
+			var hasKruizeDeployment, hasKruizeDBDeployment bool
+			for _, resource := range namespacedResources {
+				kind := resource.GetObjectKind().GroupVersionKind().Kind
+				name := resource.GetName()
+				
+				if kind == "Deployment" && name == "kruize" {
+					hasKruizeDeployment = true
+				}
+				if kind == "Deployment" && name == "kruize-db-deployment" {
+					hasKruizeDBDeployment = true
+				}
+			}
+			
+			Expect(hasKruizeDeployment).To(BeTrue(), "Kruize deployment should be generated")
+			Expect(hasKruizeDBDeployment).To(BeTrue(), "Kruize DB deployment should be generated")
+		})
+
+		It("should generate valid Kruize deployment manifest for Kubernetes", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "minikube")
+
+			namespacedResources := generator.KubernetesNamespacedResources()
+			
+			// Check for Deployment resources
+			var hasKruizeDeployment, hasKruizeDBDeployment bool
+			for _, resource := range namespacedResources {
+				kind := resource.GetObjectKind().GroupVersionKind().Kind
+				name := resource.GetName()
+				
+				if kind == "Deployment" && name == "kruize" {
+					hasKruizeDeployment = true
+				}
+				if kind == "Deployment" && name == "kruize-db-deployment" {
+					hasKruizeDBDeployment = true
+				}
+			}
+			
+			Expect(hasKruizeDeployment).To(BeTrue(), "Kruize deployment should be generated")
+			Expect(hasKruizeDBDeployment).To(BeTrue(), "Kruize DB deployment should be generated")
+		})
+	})
+
+	Context("Pod creation validation", func() {
+		It("should generate Kruize pod specification", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+
+			namespacedResources := generator.NamespacedResources()
+			
+			// Find the Kruize deployment
+			var kruizeDeployment *appsv1.Deployment
+			for _, resource := range namespacedResources {
+				if resource.GetObjectKind().GroupVersionKind().Kind == "Deployment" && resource.GetName() == "kruize" {
+					kruizeDeployment = resource.(*appsv1.Deployment)
+					break
+				}
+			}
+			
+			Expect(kruizeDeployment).NotTo(BeNil(), "Kruize deployment should exist")
+			Expect(kruizeDeployment.Spec.Template.Spec.Containers).NotTo(BeEmpty())
+			Expect(kruizeDeployment.Spec.Template.Spec.Containers[0].Name).To(Equal("kruize"))
+		})
+
+		It("should generate Kruize-ui pod specification", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+
+			namespacedResources := generator.NamespacedResources()
+			
+			// Find the Kruize UI pod
+			var kruizeUIPod *corev1.Pod
+			for _, resource := range namespacedResources {
+				if resource.GetObjectKind().GroupVersionKind().Kind == "Pod" && resource.GetName() == "kruize-ui-nginx-pod" {
+					kruizeUIPod = resource.(*corev1.Pod)
+					break
+				}
+			}
+			
+			Expect(kruizeUIPod).NotTo(BeNil(), "Kruize UI pod should exist")
+			Expect(kruizeUIPod.Spec.Containers).NotTo(BeEmpty())
+		})
+
+		It("should generate Kruize-db pod specification", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+
+			namespacedResources := generator.NamespacedResources()
+			
+			// Find the Kruize DB deployment
+			var kruizeDBDeployment *appsv1.Deployment
+			for _, resource := range namespacedResources {
+				if resource.GetObjectKind().GroupVersionKind().Kind == "Deployment" && resource.GetName() == "kruize-db-deployment" {
+					kruizeDBDeployment = resource.(*appsv1.Deployment)
+					break
+				}
+			}
+			
+			Expect(kruizeDBDeployment).NotTo(BeNil(), "Kruize DB deployment should exist")
+			Expect(kruizeDBDeployment.Spec.Template.Spec.Containers).NotTo(BeEmpty())
+			Expect(kruizeDBDeployment.Spec.Template.Spec.Containers[0].Name).To(Equal("kruize-db"))
+		})
+	})
+
+	Context("Route and service creation", func() {
+		It("should generate routes for OpenShift", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+
+			namespacedResources := generator.NamespacedResources()
+			
+			// Check for Route resources
+			var hasKruizeRoute, hasUIRoute bool
+			for _, resource := range namespacedResources {
+				kind := resource.GetObjectKind().GroupVersionKind().Kind
+				name := resource.GetName()
+				
+				if kind == "Route" && name == "kruize" {
+					hasKruizeRoute = true
+				}
+				if kind == "Route" && name == "kruize-ui-nginx-service" {
+					hasUIRoute = true
+				}
+			}
+			
+			Expect(hasKruizeRoute).To(BeTrue(), "Kruize route should be generated")
+			Expect(hasUIRoute).To(BeTrue(), "Kruize UI route should be generated")
+		})
+
+		It("should generate services for all cluster types", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+
+			namespacedResources := generator.NamespacedResources()
+			
+			// Check for Service resources
+			var hasKruizeService, hasDBService, hasUIService bool
+			for _, resource := range namespacedResources {
+				kind := resource.GetObjectKind().GroupVersionKind().Kind
+				name := resource.GetName()
+				
+				if kind == "Service" && name == "kruize" {
+					hasKruizeService = true
+				}
+				if kind == "Service" && name == "kruize-db-service" {
+					hasDBService = true
+				}
+				if kind == "Service" && name == "kruize-ui-nginx-service" {
+					hasUIService = true
+				}
+			}
+			
+			Expect(hasKruizeService).To(BeTrue(), "Kruize service should be generated")
+			Expect(hasDBService).To(BeTrue(), "Kruize DB service should be generated")
+			Expect(hasUIService).To(BeTrue(), "Kruize UI service should be generated")
+		})
+	})
+
+	Context("Kruize endpoints validation", func() {
+		It("should generate service with correct ports for Kruize", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+
+			namespacedResources := generator.NamespacedResources()
+			
+			// Find the Kruize service
+			var kruizeService *corev1.Service
+			for _, resource := range namespacedResources {
+				if resource.GetObjectKind().GroupVersionKind().Kind == "Service" && resource.GetName() == "kruize" {
+					kruizeService = resource.(*corev1.Service)
+					break
+				}
+			}
+			
+			Expect(kruizeService).NotTo(BeNil(), "Kruize service should exist")
+			Expect(kruizeService.Spec.Ports).NotTo(BeEmpty(), "Service should have ports defined")
+			
+			// Verify the service has the expected port
+			var hasKruizePort bool
+			for _, port := range kruizeService.Spec.Ports {
+				if port.Name == "kruize-port" {
+					hasKruizePort = true
+					Expect(port.Port).To(Equal(int32(8080)))
+				}
+			}
+			Expect(hasKruizePort).To(BeTrue(), "Service should have kruize-port defined")
+		})
+
+		It("should generate service with correct ports for Kruize UI", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+
+			namespacedResources := generator.NamespacedResources()
+			
+			// Find the Kruize UI service
+			var kruizeUIService *corev1.Service
+			for _, resource := range namespacedResources {
+				if resource.GetObjectKind().GroupVersionKind().Kind == "Service" && resource.GetName() == "kruize-ui-nginx-service" {
+					kruizeUIService = resource.(*corev1.Service)
+					break
+				}
+			}
+			
+			Expect(kruizeUIService).NotTo(BeNil(), "Kruize UI service should exist")
+			Expect(kruizeUIService.Spec.Ports).NotTo(BeEmpty(), "Service should have ports defined")
+			
+			// Verify the service has the expected port
+			var hasUIPort bool
+			for _, port := range kruizeUIService.Spec.Ports {
+				if port.Name == "http" {
+					hasUIPort = true
+					Expect(port.Port).To(Equal(int32(8080)))
+				}
+			}
+			Expect(hasUIPort).To(BeTrue(), "Service should have kruize-ui http port defined")
+		})
+
+		It("should generate service with correct ports for Kruize DB", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+
+			namespacedResources := generator.NamespacedResources()
+			
+			// Find the Kruize DB service
+			var kruizeDBService *corev1.Service
+			for _, resource := range namespacedResources {
+				if resource.GetObjectKind().GroupVersionKind().Kind == "Service" && resource.GetName() == "kruize-db-service" {
+					kruizeDBService = resource.(*corev1.Service)
+					break
+				}
+			}
+			
+			Expect(kruizeDBService).NotTo(BeNil(), "Kruize DB service should exist")
+			Expect(kruizeDBService.Spec.Ports).NotTo(BeEmpty(), "Service should have ports defined")
+			
+			// Verify the service has the expected port
+			var hasDBPort bool
+			for _, port := range kruizeDBService.Spec.Ports {
+				if port.Name == "kruize-db-port" {
+					hasDBPort = true
+					Expect(port.Port).To(Equal(int32(5432)))
+				}
+			}
+			Expect(hasDBPort).To(BeTrue(), "Service should have kruize-db-port defined")
 		})
 	})
 
