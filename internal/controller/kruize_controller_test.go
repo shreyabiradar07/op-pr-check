@@ -520,6 +520,60 @@ var _ = Describe("Kruize Controller", func() {
 			}
 			Expect(hasDBPort).To(BeTrue(), "Service should have kruize-db-port defined")
 		})
+
+		It("should generate Kruize service with NodePort type", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+
+			namespacedResources := generator.NamespacedResources()
+			
+			// Find the Kruize service
+			var kruizeService *corev1.Service
+			for _, resource := range namespacedResources {
+				if resource.GetObjectKind().GroupVersionKind().Kind == "Service" && resource.GetName() == "kruize" {
+					kruizeService = resource.(*corev1.Service)
+					break
+				}
+			}
+			
+			Expect(kruizeService).NotTo(BeNil(), "Kruize service should exist")
+			Expect(kruizeService.Spec.Type).To(Equal(corev1.ServiceTypeNodePort), "Kruize service should be NodePort type")
+		})
+
+		It("should generate Kruize UI service with NodePort type", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+
+			namespacedResources := generator.NamespacedResources()
+			
+			// Find the Kruize UI service
+			var kruizeUIService *corev1.Service
+			for _, resource := range namespacedResources {
+				if resource.GetObjectKind().GroupVersionKind().Kind == "Service" && resource.GetName() == "kruize-ui-nginx-service" {
+					kruizeUIService = resource.(*corev1.Service)
+					break
+				}
+			}
+			
+			Expect(kruizeUIService).NotTo(BeNil(), "Kruize UI service should exist")
+			Expect(kruizeUIService.Spec.Type).To(Equal(corev1.ServiceTypeNodePort), "Kruize UI service should be NodePort type")
+		})
+
+		It("should generate Kruize DB service with ClusterIP type", func() {
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+
+			namespacedResources := generator.NamespacedResources()
+			
+			// Find the Kruize DB service
+			var kruizeDBService *corev1.Service
+			for _, resource := range namespacedResources {
+				if resource.GetObjectKind().GroupVersionKind().Kind == "Service" && resource.GetName() == "kruize-db-service" {
+					kruizeDBService = resource.(*corev1.Service)
+					break
+				}
+			}
+			
+			Expect(kruizeDBService).NotTo(BeNil(), "Kruize DB service should exist")
+			Expect(kruizeDBService.Spec.Type).To(Equal(corev1.ServiceTypeClusterIP), "Kruize DB service should be ClusterIP type")
+		})
 	})
 
 })
