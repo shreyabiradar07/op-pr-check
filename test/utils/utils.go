@@ -22,6 +22,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"path/filepath"
 
 	. "github.com/onsi/ginkgo/v2" //nolint:golint,revive
 )
@@ -305,48 +306,69 @@ func GetProjectDir() (string, error) {
 	return wd, nil
 }
 
-// UpdateKruizeSampleYAML updates the v1alpha1_kruize.yaml file with the specified cluster type, namespace, and optional images
-func UpdateKruizeSampleYAML(clusterType, namespace, kruizeImage, kruizeUIImage string) error {
-	// Update cluster_type
-	cmd := exec.Command("sed", "-i",
-		fmt.Sprintf("s/cluster_type: \"[^\"]*\"/cluster_type: \"%s\"/g", clusterType),
-		"config/samples/v1alpha1_kruize.yaml")
-	if _, err := Run(cmd); err != nil {
-		return fmt.Errorf("failed to update cluster_type: %w", err)
+// UpdateKruizeSampleYAML creates a temporary copy of v1alpha1_kruize.yaml with the specified cluster type, namespace, and optional images
+// Returns the path to the temporary file, which should be cleaned up by the caller
+func UpdateKruizeSampleYAML(clusterType, namespace, kruizeImage, kruizeUIImage string) (string, error) {
+	sourcePath := "config/samples/v1alpha1_kruize.yaml"
+	
+	// Read the original file
+	content, err := os.ReadFile(sourcePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read sample YAML: %w", err)
 	}
-
-	// Update namespace
-	cmd = exec.Command("sed", "-i",
-		fmt.Sprintf("s/namespace: \"[^\"]*\"/namespace: \"%s\"/g", namespace),
-		"config/samples/v1alpha1_kruize.yaml")
-	if _, err := Run(cmd); err != nil {
-		return fmt.Errorf("failed to update namespace: %w", err)
-	}
-
+	
+	// Convert to string for replacements
+	yamlContent := string(content)
+	
+	// Update cluster_type using regex
+	clusterTypeRe := regexp.MustCompile(`cluster_type:\s*"[^"]*"`)
+	yamlContent = clusterTypeRe.ReplaceAllString(yamlContent, fmt.Sprintf(`cluster_type: "%s"`, clusterType))
+	
+	// Update namespace using regex
+	namespaceRe := regexp.MustCompile(`namespace:\s*"[^"]*"`)
+	yamlContent = namespaceRe.ReplaceAllString(yamlContent, fmt.Sprintf(`namespace: "%s"`, namespace))
+	
 	// Update autotune_image if specified
 	if kruizeImage != "" {
-		cmd = exec.Command("sed", "-i",
-			fmt.Sprintf("s|autotune_image: \"[^\"]*\"|autotune_image: \"%s\"|g", kruizeImage),
-			"config/samples/v1alpha1_kruize.yaml")
-		if _, err := Run(cmd); err != nil {
-			return fmt.Errorf("failed to update autotune_image: %w", err)
-		}
+		autotuneImageRe := regexp.MustCompile(`autotune_image:\s*"[^"]*"`)
+		yamlContent = autotuneImageRe.ReplaceAllString(yamlContent, fmt.Sprintf(`autotune_image: "%s"`, kruizeImage))
 		fmt.Fprintf(GinkgoWriter, "Updated autotune_image to %s\n", kruizeImage)
 	}
-
+	
 	// Update autotune_ui_image if specified
 	if kruizeUIImage != "" {
-		cmd = exec.Command("sed", "-i",
-			fmt.Sprintf("s|autotune_ui_image: \"[^\"]*\"|autotune_ui_image: \"%s\"|g", kruizeUIImage),
-			"config/samples/v1alpha1_kruize.yaml")
-		if _, err := Run(cmd); err != nil {
-			return fmt.Errorf("failed to update autotune_ui_image: %w", err)
-		}
+		autotuneUIImageRe := regexp.MustCompile(`autotune_ui_image:\s*"[^"]*"`)
+		yamlContent = autotuneUIImageRe.ReplaceAllString(yamlContent, fmt.Sprintf(`autotune_ui_image: "%s"`, kruizeUIImage))
 		fmt.Fprintf(GinkgoWriter, "Updated autotune_ui_image to %s\n", kruizeUIImage)
 	}
+	
+	// Create a temporary file
+	tmpFile, err := os.CreateTemp("", "kruize-sample-*.yaml")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temporary file: %w", err)
+	}
+	defer tmpFile.Close()
+	
+	// Write the modified content to the temporary file
+	if _, err := tmpFile.WriteString(yamlContent); err != nil {
+		os.Remove(tmpFile.Name())
+		return "", fmt.Errorf("failed to write to temporary file: %w", err)
+	}
+	
+	tmpPath := tmpFile.Name()
+	fmt.Fprintf(GinkgoWriter, "Created temporary sample CR at %s with cluster_type=%s, namespace=%s\n", tmpPath, clusterType, namespace)
+	return tmpPath, nil
+}
 
-	fmt.Fprintf(GinkgoWriter, "Updated v1alpha1_kruize.yaml with cluster_type=%s, namespace=%s\n", clusterType, namespace)
-	return nil
+// CleanupTempFile removes a temporary file created by UpdateKruizeSampleYAML
+func CleanupTempFile(path string) {
+	if path != "" && filepath.Base(path) != "v1alpha1_kruize.yaml" {
+		if err := os.Remove(path); err != nil {
+			fmt.Fprintf(GinkgoWriter, "Warning: failed to remove temporary file %s: %v\n", path, err)
+		} else {
+			fmt.Fprintf(GinkgoWriter, "Cleaned up temporary file %s\n", path)
+		}
+	}
 }
 
 

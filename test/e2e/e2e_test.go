@@ -62,11 +62,6 @@ var _ = Describe("controller", Ordered, func() {
 			var controllerPodName string
 			var err error
 
-			// Update CR BEFORE deploying controller so it uses correct images
-			By(fmt.Sprintf("updating sample CR for cluster_type=%s and namespace=%s", clusterType, namespace))
-			err = utils.UpdateKruizeSampleYAML(clusterType, namespace, kruizeImage, kruizeUIImage)
-			ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
 			By(fmt.Sprintf("using operator image: %s", operatorImage))
 
 			By("installing CRDs")
@@ -118,13 +113,21 @@ var _ = Describe("controller", Ordered, func() {
 		})
 
 		It("should deploy Kruize components successfully", func() {
+			var tmpCRPath string
+			var err error
+
 			By(fmt.Sprintf("creating namespace %s if it doesn't exist", namespace))
 			cmd := exec.Command("kubectl", "create", "namespace", namespace)
 			_, _ = utils.Run(cmd) // Ignore error if namespace already exists
 			
-			By("creating a Kruize custom resource")
-			cmd = exec.Command("kubectl", "apply", "-f", "config/samples/v1alpha1_kruize.yaml", "-n", namespace)
-			_, err := utils.Run(cmd)
+			By("creating a temporary Kruize custom resource")
+			tmpCRPath, err = utils.UpdateKruizeSampleYAML(clusterType, namespace, kruizeImage, kruizeUIImage)
+			ExpectWithOffset(1, err).NotTo(HaveOccurred())
+			defer utils.CleanupTempFile(tmpCRPath)
+
+			By("applying the Kruize custom resource")
+			cmd = exec.Command("kubectl", "apply", "-f", tmpCRPath, "-n", namespace)
+			_, err = utils.Run(cmd)
 			ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 			By("checking that kruize namespace is created")
