@@ -22,7 +22,6 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2" //nolint:golint,revive
 )
@@ -98,10 +97,6 @@ func InstallPrometheusOperator(clusterType string) error {
 		}
 	}
 
-	// Give CRDs time to be registered with the API server
-	fmt.Fprintf(GinkgoWriter, "Waiting for CRDs to be registered with API server...\n")
-	time.Sleep(10 * time.Second)
-
 	// Step 3: Wait for CRDs to be established
 	fmt.Fprintf(GinkgoWriter, "Waiting for CRDs to be established...\n")
 	crds := []string{
@@ -140,29 +135,39 @@ func InstallPrometheusOperator(clusterType string) error {
 		}
 	}
 
-	// Step 5: Wait for Prometheus pods to be running
-	fmt.Fprintf(GinkgoWriter, "Waiting for Prometheus pods to be ready...\n")
+	// Step 5: Wait for monitoring namespace to be ready
+	fmt.Fprintf(GinkgoWriter, "Waiting for monitoring namespace to be ready...\n")
+	waitNSCmd := exec.Command("kubectl", "wait", "--for=jsonpath={.status.phase}=Active", "--timeout=60s", "namespace/"+prometheusNS)
+	_, err = Run(waitNSCmd)
+	if err != nil {
+		fmt.Fprintf(GinkgoWriter, "Warning: namespace wait failed, continuing: %v\n", err)
+	}
 
-	time.Sleep(60 * time.Second)
-	
+	// Wait for prometheus-operator deployment to be ready first
+	fmt.Fprintf(GinkgoWriter, "Waiting for prometheus-operator deployment to be ready...\n")
+	waitOpCmd := exec.Command("kubectl", "wait", "--for=condition=Available", "--timeout=120s", "deployment/prometheus-operator", "-n", prometheusNS)
+	_, err = Run(waitOpCmd)
+	if err != nil {
+		fmt.Fprintf(GinkgoWriter, "Warning: prometheus-operator wait failed, continuing: %v\n", err)
+	}
+
 	// Wait for prometheus-k8s statefulset to be ready
-	maxRetries := 60 // 5 minutes (60 * 5 seconds)
-	for i := 0; i < maxRetries; i++ {
+	fmt.Fprintf(GinkgoWriter, "Waiting for Prometheus statefulset to be ready...\n")
+	// Use kubectl wait with polling for statefulset readiness
+	waitPrometheusCmd := exec.Command("kubectl", "wait", "--for=jsonpath={.status.readyReplicas}=2", "--timeout=300s", "statefulset/prometheus-k8s", "-n", prometheusNS)
+	_, err = Run(waitPrometheusCmd)
+	if err != nil {
+		// Fallback: check if at least one replica is ready
+		fmt.Fprintf(GinkgoWriter, "Full readiness check failed, checking for partial readiness...\n")
 		checkCmd := exec.Command("kubectl", "get", "statefulset", "prometheus-k8s", "-n", prometheusNS, "-o", "jsonpath={.status.readyReplicas}")
-		output, err := Run(checkCmd)
-		if err == nil && len(output) > 0 && string(output) != "0" && string(output) != "" {
-			fmt.Fprintf(GinkgoWriter, "Prometheus pods are ready (%s replicas)\n", string(output))
-			break
+		output, checkErr := Run(checkCmd)
+		if checkErr == nil && len(output) > 0 && string(output) != "0" && string(output) != "" {
+			fmt.Fprintf(GinkgoWriter, "Prometheus partially ready with %s replicas, continuing...\n", string(output))
+		} else {
+			return fmt.Errorf("timeout waiting for Prometheus pods to be ready: %w", err)
 		}
-		
-		if i == maxRetries-1 {
-			return fmt.Errorf("timeout waiting for Prometheus pods to be ready")
-		}
-		
-		if i%6 == 0 { // Log every 30 seconds
-			fmt.Fprintf(GinkgoWriter, "Still waiting for Prometheus pods... (%d/%d)\n", i+1, maxRetries)
-		}
-		time.Sleep(5 * time.Second)
+	} else {
+		fmt.Fprintf(GinkgoWriter, "Prometheus statefulset is ready\n")
 	}
 
 	fmt.Fprintf(GinkgoWriter, "kube-prometheus installation completed successfully\n")

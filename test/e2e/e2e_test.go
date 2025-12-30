@@ -127,8 +127,6 @@ var _ = Describe("controller", Ordered, func() {
 			_, err := utils.Run(cmd)
 			ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
-			time.Sleep(60 * time.Second)
-
 			By("checking that kruize namespace is created")
 			Eventually(func() error {
 				cmd := exec.Command("kubectl", "get", "namespace", namespace)
