@@ -336,7 +336,9 @@ var _ = Describe("Kruize Controller", func() {
 			var kruizeDeployment *appsv1.Deployment
 			for _, resource := range namespacedResources {
 				if resource.GetObjectKind().GroupVersionKind().Kind == "Deployment" && resource.GetName() == "kruize" {
-					kruizeDeployment = resource.(*appsv1.Deployment)
+					var ok bool
+					kruizeDeployment, ok = resource.(*appsv1.Deployment)
+					Expect(ok).To(BeTrue(), "Resource should be a valid Deployment")
 					break
 				}
 			}
@@ -355,7 +357,9 @@ var _ = Describe("Kruize Controller", func() {
 			var kruizeUIPod *corev1.Pod
 			for _, resource := range namespacedResources {
 				if resource.GetObjectKind().GroupVersionKind().Kind == "Pod" && resource.GetName() == "kruize-ui-nginx-pod" {
-					kruizeUIPod = resource.(*corev1.Pod)
+					var ok bool
+					kruizeUIPod, ok = resource.(*corev1.Pod)
+					Expect(ok).To(BeTrue(), "Resource should be a valid Pod")
 					break
 				}
 			}
@@ -373,7 +377,9 @@ var _ = Describe("Kruize Controller", func() {
 			var kruizeDBDeployment *appsv1.Deployment
 			for _, resource := range namespacedResources {
 				if resource.GetObjectKind().GroupVersionKind().Kind == "Deployment" && resource.GetName() == "kruize-db-deployment" {
-					kruizeDBDeployment = resource.(*appsv1.Deployment)
+					var ok bool
+					kruizeDBDeployment, ok = resource.(*appsv1.Deployment)
+					Expect(ok).To(BeTrue(), "Resource should be a valid Deployment")
 					break
 				}
 			}
@@ -446,7 +452,9 @@ var _ = Describe("Kruize Controller", func() {
 			var kruizeService *corev1.Service
 			for _, resource := range namespacedResources {
 				if resource.GetObjectKind().GroupVersionKind().Kind == "Service" && resource.GetName() == "kruize" {
-					kruizeService = resource.(*corev1.Service)
+					var ok bool
+					kruizeService, ok = resource.(*corev1.Service)
+					Expect(ok).To(BeTrue(), "Resource should be a valid Service")
 					break
 				}
 			}
@@ -474,7 +482,9 @@ var _ = Describe("Kruize Controller", func() {
 			var kruizeUIService *corev1.Service
 			for _, resource := range namespacedResources {
 				if resource.GetObjectKind().GroupVersionKind().Kind == "Service" && resource.GetName() == "kruize-ui-nginx-service" {
-					kruizeUIService = resource.(*corev1.Service)
+					var ok bool
+					kruizeUIService, ok = resource.(*corev1.Service)
+					Expect(ok).To(BeTrue(), "Resource should be a valid Service")
 					break
 				}
 			}
@@ -502,7 +512,9 @@ var _ = Describe("Kruize Controller", func() {
 			var kruizeDBService *corev1.Service
 			for _, resource := range namespacedResources {
 				if resource.GetObjectKind().GroupVersionKind().Kind == "Service" && resource.GetName() == "kruize-db-service" {
-					kruizeDBService = resource.(*corev1.Service)
+					var ok bool
+					kruizeDBService, ok = resource.(*corev1.Service)
+					Expect(ok).To(BeTrue(), "Resource should be a valid Service")
 					break
 				}
 			}
@@ -530,7 +542,9 @@ var _ = Describe("Kruize Controller", func() {
 			var kruizeService *corev1.Service
 			for _, resource := range namespacedResources {
 				if resource.GetObjectKind().GroupVersionKind().Kind == "Service" && resource.GetName() == "kruize" {
-					kruizeService = resource.(*corev1.Service)
+					var ok bool
+					kruizeService, ok = resource.(*corev1.Service)
+					Expect(ok).To(BeTrue(), "Resource should be a valid Service")
 					break
 				}
 			}
@@ -548,7 +562,9 @@ var _ = Describe("Kruize Controller", func() {
 			var kruizeUIService *corev1.Service
 			for _, resource := range namespacedResources {
 				if resource.GetObjectKind().GroupVersionKind().Kind == "Service" && resource.GetName() == "kruize-ui-nginx-service" {
-					kruizeUIService = resource.(*corev1.Service)
+					var ok bool
+					kruizeUIService, ok = resource.(*corev1.Service)
+					Expect(ok).To(BeTrue(), "Resource should be a valid Service")
 					break
 				}
 			}
@@ -566,7 +582,9 @@ var _ = Describe("Kruize Controller", func() {
 			var kruizeDBService *corev1.Service
 			for _, resource := range namespacedResources {
 				if resource.GetObjectKind().GroupVersionKind().Kind == "Service" && resource.GetName() == "kruize-db-service" {
-					kruizeDBService = resource.(*corev1.Service)
+					var ok bool
+					kruizeDBService, ok = resource.(*corev1.Service)
+					Expect(ok).To(BeTrue(), "Resource should be a valid Service")
 					break
 				}
 			}
