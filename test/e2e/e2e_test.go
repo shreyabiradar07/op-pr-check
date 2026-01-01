@@ -28,8 +28,6 @@ import (
 	"github.com/kruize/kruize-operator/test/utils"
 )
 
-const operatorNamespace = "kruize-operator-system"
-
 var _ = Describe("controller", Ordered, func() {
 	BeforeAll(func() {
 		// Skip Prometheus Operator installation on OpenShift as it's pre-installed
@@ -45,15 +43,23 @@ var _ = Describe("controller", Ordered, func() {
 			By("skipping prometheus operator installation on OpenShift (pre-installed)")
 		}
 
-		By("creating manager namespace")
-		cmd := exec.Command("kubectl", "create", "ns", operatorNamespace)
+		By(fmt.Sprintf("creating namespace %s for operator and Kruize", namespace))
+		cmd := exec.Command("kubectl", "create", "ns", namespace)
 		_, _ = utils.Run(cmd)
 	})
 
 	AfterAll(func() {
+		By("undeploying the controller-manager")
+		// Determine overlay based on cluster type
+		overlay := "local"
+		if clusterType == "openshift" {
+			overlay = "openshift"
+		}
+		cmd := exec.Command("make", "undeploy", fmt.Sprintf("OVERLAY=%s", overlay))
+		_, _ = utils.Run(cmd)
 
-		By("removing manager namespace")
-		cmd := exec.Command("kubectl", "delete", "ns", operatorNamespace)
+		By("uninstalling CRDs")
+		cmd = exec.Command("make", "uninstall")
 		_, _ = utils.Run(cmd)
 	})
 
@@ -69,8 +75,13 @@ var _ = Describe("controller", Ordered, func() {
 			_, err = utils.Run(cmd)
 			ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
-			By("deploying the controller-manager")
-			cmd = exec.Command("make", "deploy", fmt.Sprintf("IMG=%s", operatorImage))
+			By(fmt.Sprintf("deploying the controller-manager to namespace %s", namespace))
+			// Determine overlay based on cluster type
+			overlay := "local"
+			if clusterType == "openshift" {
+				overlay = "openshift"
+			}
+			cmd = exec.Command("make", "deploy", fmt.Sprintf("IMG=%s", operatorImage), fmt.Sprintf("OVERLAY=%s", overlay))
 			_, err = utils.Run(cmd)
 			ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
@@ -84,7 +95,7 @@ var _ = Describe("controller", Ordered, func() {
 						"{{ if not .metadata.deletionTimestamp }}"+
 						"{{ .metadata.name }}"+
 						"{{ \"\\n\" }}{{ end }}{{ end }}",
-					"-n", operatorNamespace,
+					"-n", namespace,
 				)
 
 				podOutput, err := utils.Run(cmd)
@@ -99,7 +110,7 @@ var _ = Describe("controller", Ordered, func() {
 				// Validate pod status
 				cmd = exec.Command("kubectl", "get",
 					"pods", controllerPodName, "-o", "jsonpath={.status.phase}",
-					"-n", operatorNamespace,
+					"-n", namespace,
 				)
 				status, err := utils.Run(cmd)
 				ExpectWithOffset(2, err).NotTo(HaveOccurred())
@@ -108,7 +119,7 @@ var _ = Describe("controller", Ordered, func() {
 				}
 				return nil
 			}
-			EventuallyWithOffset(1, verifyControllerUp, time.Minute, time.Second).Should(Succeed())
+			EventuallyWithOffset(1, verifyControllerUp, time.Minute, 10*time.Second).Should(Succeed())
 
 		})
 
@@ -116,17 +127,13 @@ var _ = Describe("controller", Ordered, func() {
 			var tmpCRPath string
 			var err error
 
-			By(fmt.Sprintf("creating namespace %s if it doesn't exist", namespace))
-			cmd := exec.Command("kubectl", "create", "namespace", namespace)
-			_, _ = utils.Run(cmd) // Ignore error if namespace already exists
-			
 			By("creating a temporary Kruize custom resource")
 			tmpCRPath, err = utils.UpdateKruizeSampleYAML(clusterType, namespace, kruizeImage, kruizeUIImage)
 			ExpectWithOffset(1, err).NotTo(HaveOccurred())
 			defer utils.CleanupTempFile(tmpCRPath)
 
 			By("applying the Kruize custom resource")
-			cmd = exec.Command("kubectl", "apply", "-f", tmpCRPath, "-n", namespace)
+			cmd := exec.Command("kubectl", "apply", "-f", tmpCRPath, "-n", namespace)
 			_, err = utils.Run(cmd)
 			ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
@@ -220,9 +227,9 @@ var _ = Describe("controller", Ordered, func() {
 				if err != nil {
 					return err
 				}
-				
+
 				datasourceOutput = string(output)
-				
+
 				// Check for prometheus-1 datasource
 				if !strings.Contains(datasourceOutput, "prometheus-1") {
 					return fmt.Errorf("prometheus-1 datasource not found in API response")
@@ -234,12 +241,8 @@ var _ = Describe("controller", Ordered, func() {
 			fmt.Fprintf(GinkgoWriter, "\n=== Datasources API Output ===\n%s\n==============================\n", datasourceOutput)
 
 			By("cleaning up the Kruize custom resource")
-			cmd = exec.Command("kubectl", "delete", "-f", "config/samples/v1alpha1_kruize.yaml", "-n", namespace)
+			cmd = exec.Command("kubectl", "delete", "-f", tmpCRPath, "-n", namespace)
 			_, _ = utils.Run(cmd)
-
-			By("cleaning up the Kruize operator")
-            			cmd = exec.Command("make", "undeploy")
-            			_, _ = utils.Run(cmd)
 		})
 	})
 })
