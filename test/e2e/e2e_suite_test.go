@@ -19,10 +19,12 @@ package e2e
 import (
 	"flag"
 	"fmt"
+	"os"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"gopkg.in/yaml.v3"
 
 	"github.com/kruize/kruize-operator/internal/constants"
 	"github.com/kruize/kruize-operator/test/utils"
@@ -38,20 +40,75 @@ var (
 )
 
 func init() {
-	flag.StringVar(&clusterType, "cluster-type", constants.ClusterTypeKind, "Cluster type: kind, minikube, or openshift")
-	flag.StringVar(&namespace, "namespace", "", "Target namespace for Kruize deployment (default: auto-detected based on cluster type)")
+	// Read defaults from sample YAML file
+	defaultClusterType, defaultNamespace, defaultKruizeImage, defaultKruizeUIImage := readSampleYAMLDefaults()
+
+	flag.StringVar(&clusterType, "cluster-type", defaultClusterType, "Cluster type: kind, minikube, or openshift")
+	flag.StringVar(&namespace, "namespace", defaultNamespace, "Target namespace for Kruize deployment (default: from sample YAML or auto-detected based on cluster type)")
 	flag.StringVar(&operatorImage, "operator-image", "", "Operator image (default: read from Makefile)")
-	flag.StringVar(&kruizeImage, "kruize-image", "", "Kruize/Autotune image (optional)")
-	flag.StringVar(&kruizeUIImage, "kruize-ui-image", "", "Kruize UI image (optional)")
+	flag.StringVar(&kruizeImage, "kruize-image", defaultKruizeImage, "Kruize/Autotune image (default: from sample YAML)")
+	flag.StringVar(&kruizeUIImage, "kruize-ui-image", defaultKruizeUIImage, "Kruize UI image (default: from sample YAML)")
+}
+
+// readSampleYAMLDefaults reads default values from the sample YAML file
+func readSampleYAMLDefaults() (clusterType, namespace, kruizeImage, kruizeUIImage string) {
+	// Set fallback defaults
+	clusterType = constants.ClusterTypeKind
+	namespace = ""
+	kruizeImage = ""
+	kruizeUIImage = ""
+
+	// Get project directory to construct absolute path
+	projectDir, err := utils.GetProjectDir()
+	if err != nil {
+		return
+	}
+
+	sourcePath := projectDir + "/config/samples/v1alpha1_kruize.yaml"
+	content, err := os.ReadFile(sourcePath)
+	if err != nil {
+		return
+	}
+
+	// Parse YAML
+	var yamlData map[string]interface{}
+	if err := yaml.Unmarshal(content, &yamlData); err != nil {
+		return
+	}
+
+	// Extract spec section
+	spec, ok := yamlData["spec"].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	// Extract values from sample YAML with type assertions
+	if ct, ok := spec["cluster_type"].(string); ok {
+		clusterType = ct
+	}
+	if ns, ok := spec["namespace"].(string); ok {
+		namespace = ns
+	}
+	if ai, ok := spec["autotune_image"].(string); ok {
+		kruizeImage = ai
+	}
+	if aui, ok := spec["autotune_ui_image"].(string); ok {
+		kruizeUIImage = aui
+	}
+
+	return
 }
 
 var _ = BeforeSuite(func() {
-	// Auto-detect namespace if not specified via flag
+	// Auto-detect namespace based on cluster type if not explicitly set
 	if namespace == "" {
-		if clusterType == constants.ClusterTypeOpenShift {
-			namespace = "openshift-tuning"
-		} else {
-			namespace = "monitoring"
+		namespace = getDefaultNamespace(clusterType)
+	} else {
+		// If namespace was set from sample YAML but cluster type was changed via flag,
+		// override namespace to match the new cluster type
+		defaultClusterType, defaultNamespace, _, _ := readSampleYAMLDefaults()
+		if namespace == defaultNamespace && clusterType != defaultClusterType {
+			namespace = getDefaultNamespace(clusterType)
 		}
 	}
 
@@ -60,7 +117,6 @@ var _ = BeforeSuite(func() {
 		var err error
 		operatorImage, err = utils.ExtractImageFromMakefile()
 		if err != nil {
-			// Use default if Makefile not found
 			operatorImage = "quay.io/kruize/kruize-operator:0.0.2"
 		}
 	}
@@ -68,6 +124,14 @@ var _ = BeforeSuite(func() {
 	fmt.Fprintf(GinkgoWriter, "Running e2e tests with cluster_type=%s, namespace=%s, operator_image=%s, kruize_image=%s, kruize_ui_image=%s\n",
 		clusterType, namespace, operatorImage, kruizeImage, kruizeUIImage)
 })
+
+// getDefaultNamespace returns the default namespace for the given cluster type
+func getDefaultNamespace(clusterType string) string {
+	if clusterType == constants.ClusterTypeOpenShift {
+		return "openshift-tuning"
+	}
+	return "monitoring"
+}
 
 // Run e2e tests using the Ginkgo runner.
 func TestE2E(t *testing.T) {
