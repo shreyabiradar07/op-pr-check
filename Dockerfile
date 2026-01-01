@@ -32,9 +32,6 @@ WORKDIR /app
 # Copy the manager binary
 COPY --from=builder /workspace/manager .
 
-# Copy the manifest files
-COPY autotune/ autotune/
-
 USER 65532:65532
 
 ENTRYPOINT ["/app/manager"]
