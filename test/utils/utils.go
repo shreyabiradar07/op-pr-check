@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 
 	. "github.com/onsi/ginkgo/v2" //nolint:golint,revive
+	"gopkg.in/yaml.v3"
 	"github.com/kruize/kruize-operator/internal/constants"
 )
 
@@ -311,29 +312,40 @@ func UpdateKruizeSampleYAML(clusterType, namespace, kruizeImage, kruizeUIImage s
 		return "", fmt.Errorf("failed to read sample YAML: %w", err)
 	}
 	
-	// Convert to string for replacements
-	yamlContent := string(content)
+	// Parse YAML into a generic map structure
+	var yamlData map[string]interface{}
+	if err := yaml.Unmarshal(content, &yamlData); err != nil {
+		return "", fmt.Errorf("failed to parse YAML: %w", err)
+	}
 	
-	// Update cluster_type using regex
-	clusterTypeRe := regexp.MustCompile(`cluster_type:\s*"[^"]*"`)
-	yamlContent = clusterTypeRe.ReplaceAllString(yamlContent, fmt.Sprintf(`cluster_type: "%s"`, clusterType))
+	// Navigate to the spec section and update fields
+	spec, ok := yamlData["spec"].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("invalid YAML structure: 'spec' field not found or not a map")
+	}
 	
-	// Update namespace using regex
-	namespaceRe := regexp.MustCompile(`namespace:\s*"[^"]*"`)
-	yamlContent = namespaceRe.ReplaceAllString(yamlContent, fmt.Sprintf(`namespace: "%s"`, namespace))
+	// Update cluster_type
+	spec["cluster_type"] = clusterType
+	
+	// Update namespace
+	spec["namespace"] = namespace
 	
 	// Update autotune_image if specified
 	if kruizeImage != "" {
-		autotuneImageRe := regexp.MustCompile(`autotune_image:\s*"[^"]*"`)
-		yamlContent = autotuneImageRe.ReplaceAllString(yamlContent, fmt.Sprintf(`autotune_image: "%s"`, kruizeImage))
+		spec["autotune_image"] = kruizeImage
 		fmt.Fprintf(GinkgoWriter, "Updated autotune_image to %s\n", kruizeImage)
 	}
 	
 	// Update autotune_ui_image if specified
 	if kruizeUIImage != "" {
-		autotuneUIImageRe := regexp.MustCompile(`autotune_ui_image:\s*"[^"]*"`)
-		yamlContent = autotuneUIImageRe.ReplaceAllString(yamlContent, fmt.Sprintf(`autotune_ui_image: "%s"`, kruizeUIImage))
+		spec["autotune_ui_image"] = kruizeUIImage
 		fmt.Fprintf(GinkgoWriter, "Updated autotune_ui_image to %s\n", kruizeUIImage)
+	}
+	
+	// Marshal the updated YAML back to bytes
+	updatedContent, err := yaml.Marshal(&yamlData)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal updated YAML: %w", err)
 	}
 	
 	// Create a temporary file
@@ -344,7 +356,7 @@ func UpdateKruizeSampleYAML(clusterType, namespace, kruizeImage, kruizeUIImage s
 	defer tmpFile.Close()
 	
 	// Write the modified content to the temporary file
-	if _, err := tmpFile.WriteString(yamlContent); err != nil {
+	if _, err := tmpFile.Write(updatedContent); err != nil {
 		os.Remove(tmpFile.Name())
 		return "", fmt.Errorf("failed to write to temporary file: %w", err)
 	}
