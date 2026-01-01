@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 
 	. "github.com/onsi/ginkgo/v2" //nolint:golint,revive
+	"github.com/kruize/kruize-operator/internal/constants"
 )
 
 const (
@@ -41,14 +42,7 @@ func warnError(err error) {
 
 // getKubePrometheusVersion returns the appropriate kube-prometheus version based on cluster type
 func getKubePrometheusVersion(clusterType string) string {
-	switch clusterType {
-	case "kind":
-		return "v0.13.0"
-	case "minikube":
-		return "v0.16.0"
-	default:
-		return "v0.16.0" // Default to latest
-	}
+	return constants.GetKubePrometheusVersion(clusterType)
 }
 
 // InstallPrometheusOperator installs kube-prometheus stack (includes Prometheus Operator, Prometheus, Grafana, etc.)

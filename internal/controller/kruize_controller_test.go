@@ -32,6 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	mydomainv1alpha1 "github.com/kruize/kruize-operator/api/v1alpha1"
+	"github.com/kruize/kruize-operator/internal/constants"
 	"github.com/kruize/kruize-operator/internal/utils"
 )
 
@@ -76,360 +77,199 @@ var _ = Describe("Kruize Controller", func() {
 		})
 	})
 	Context("When reconciling different cluster types", func() {
-		It("should handle OpenShift cluster type", func() {
-			kruize := &mydomainv1alpha1.Kruize{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-kruize-openshift",
-					Namespace: "default",
-				},
-				Spec: mydomainv1alpha1.KruizeSpec{
-					Cluster_type: "openshift",
-					Namespace:    "openshift-tuning",
-					Size:         1,
-				},
-			}
-			Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
-
-			defer func() {
-				Expect(k8sClient.Delete(ctx, kruize)).To(Succeed())
-			}()
-
-			controllerReconciler := &KruizeReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
-
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      "test-kruize-openshift",
-					Namespace: "default",
-				},
-			})
-			Expect(err).NotTo(HaveOccurred())
-		})
-
-		It("should handle minikube cluster type", func() {
-			kruize := &mydomainv1alpha1.Kruize{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-kruize-minikube",
-					Namespace: "default",
-				},
-				Spec: mydomainv1alpha1.KruizeSpec{
-					Cluster_type: "minikube",
-					Namespace:    "kruize",
-					Size:         1,
-				},
-			}
-			Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
-
-			defer func() {
-				Expect(k8sClient.Delete(ctx, kruize)).To(Succeed())
-			}()
-
-			controllerReconciler := &KruizeReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
-
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      "test-kruize-minikube",
-					Namespace: "default",
-				},
-			})
-			Expect(err).NotTo(HaveOccurred())
-		})
-
-		It("should handle kind cluster type", func() {
-			kruize := &mydomainv1alpha1.Kruize{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-kruize-kind",
-					Namespace: "default",
-				},
-				Spec: mydomainv1alpha1.KruizeSpec{
-					Cluster_type: "kind",
-					Namespace:    "kruize",
-					Size:         1,
-				},
-			}
-			Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
-
-			defer func() {
-				Expect(k8sClient.Delete(ctx, kruize)).To(Succeed())
-			}()
-
-			controllerReconciler := &KruizeReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
-
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      "test-kruize-kind",
-					Namespace: "default",
-				},
-			})
-			Expect(err).NotTo(HaveOccurred())
-		})
-
-		It("should reject unsupported cluster types", func() {
-			kruize := &mydomainv1alpha1.Kruize{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-kruize-invalid",
-					Namespace: "default",
-				},
-				Spec: mydomainv1alpha1.KruizeSpec{
-					Cluster_type: "invalid-cluster",
-					Namespace:    "test",
-					Size:         1,
-				},
-			}
-			Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
-
-			defer func() {
-				Expect(k8sClient.Delete(ctx, kruize)).To(Succeed())
-			}()
-
-			controllerReconciler := &KruizeReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
-
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      "test-kruize-invalid",
-					Namespace: "default",
-				},
-			})
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("unsupported cluster type"))
-			Expect(err.Error()).To(ContainSubstring("invalid-cluster"))
-		})
-
-		It("should reject empty cluster type", func() {
-			kruize := &mydomainv1alpha1.Kruize{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-kruize-empty",
-					Namespace: "default",
-				},
-				Spec: mydomainv1alpha1.KruizeSpec{
-					Cluster_type: "",
-					Namespace:    "test",
-					Size:         1,
-				},
-			}
-			Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
-
-			defer func() {
-				Expect(k8sClient.Delete(ctx, kruize)).To(Succeed())
-			}()
-
-			controllerReconciler := &KruizeReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
-
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      "test-kruize-empty",
-					Namespace: "default",
-				},
-			})
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("unsupported cluster type"))
-		})
-
-		It("should reject cluster type with wrong case", func() {
-			kruize := &mydomainv1alpha1.Kruize{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-kruize-wrongcase",
-					Namespace: "default",
-				},
-				Spec: mydomainv1alpha1.KruizeSpec{
-					Cluster_type: "OpenShift", // Wrong case
-					Namespace:    "test",
-					Size:         1,
-				},
-			}
-			Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
-
-			defer func() {
-				Expect(k8sClient.Delete(ctx, kruize)).To(Succeed())
-			}()
-
-			controllerReconciler := &KruizeReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
-
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      "test-kruize-wrongcase",
-					Namespace: "default",
-				},
-			})
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("unsupported cluster type"))
-			Expect(err.Error()).To(ContainSubstring("OpenShift"))
-		})
-
-		It("should include supported types in error message", func() {
-			kruize := &mydomainv1alpha1.Kruize{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-kruize-unknown",
-					Namespace: "default",
-				},
-				Spec: mydomainv1alpha1.KruizeSpec{
-					Cluster_type: "unknown",
-					Namespace:    "test",
-					Size:         1,
-				},
-			}
-			Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
-
-			defer func() {
-				Expect(k8sClient.Delete(ctx, kruize)).To(Succeed())
-			}()
-
-			controllerReconciler := &KruizeReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
-
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      "test-kruize-unknown",
-					Namespace: "default",
-				},
-			})
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("Supported types are:"))
-		})
-
-		It("should not create resources for unsupported cluster type like gke", func() {
-			testNamespace := "test-gke-namespace"
-			kruize := &mydomainv1alpha1.Kruize{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-kruize-gke",
-					Namespace: "default",
-				},
-				Spec: mydomainv1alpha1.KruizeSpec{
-					Cluster_type: "gke", // Unsupported cluster type
-					Namespace:    testNamespace,
-					Size:         1,
-				},
-			}
-			Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
-
-			defer func() {
-				Expect(k8sClient.Delete(ctx, kruize)).To(Succeed())
-			}()
-
-			controllerReconciler := &KruizeReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
-
-			// Attempt reconciliation - should fail with validation error
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      "test-kruize-gke",
-					Namespace: "default",
-				},
-			})
-			
-			// Verify error is returned
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("unsupported cluster type"))
-			Expect(err.Error()).To(ContainSubstring("gke"))
-
-			// Verify no namespace was created for Kruize components
-			namespaceList := &corev1.NamespaceList{}
-			err = k8sClient.List(ctx, namespaceList)
-			Expect(err).NotTo(HaveOccurred())
-			
-			namespaceExists := false
-			for _, ns := range namespaceList.Items {
-				if ns.Name == testNamespace {
-					namespaceExists = true
-					break
+		DescribeTable("should handle supported cluster types",
+			func(clusterType, namespace, testName string) {
+				kruize := &mydomainv1alpha1.Kruize{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      testName,
+						Namespace: "default",
+					},
+					Spec: mydomainv1alpha1.KruizeSpec{
+						Cluster_type: clusterType,
+						Namespace:    namespace,
+						Size:         1,
+					},
 				}
-			}
-			Expect(namespaceExists).To(BeFalse(), "Namespace should not be created for invalid cluster type")
+				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
 
-			// Verify no deployments were created in the test namespace
-			deploymentList := &appsv1.DeploymentList{}
-			err = k8sClient.List(ctx, deploymentList, client.InNamespace(testNamespace))
-			// Either namespace doesn't exist (error) or no deployments found
-			if err == nil {
-				Expect(deploymentList.Items).To(BeEmpty(), "No deployments should be created for invalid cluster type")
-			}
+				defer func() {
+					Expect(k8sClient.Delete(ctx, kruize)).To(Succeed())
+				}()
 
-			// Verify no services were created in the test namespace
-			serviceList := &corev1.ServiceList{}
-			err = k8sClient.List(ctx, serviceList, client.InNamespace(testNamespace))
-			// Either namespace doesn't exist (error) or no services found
-			if err == nil {
-				Expect(serviceList.Items).To(BeEmpty(), "No services should be created for invalid cluster type")
-			}
-		})
-
-		It("should not create resources for another unsupported cluster type like eks", func() {
-			testNamespace := "test-eks-namespace"
-			kruize := &mydomainv1alpha1.Kruize{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-kruize-eks",
-					Namespace: "default",
-				},
-				Spec: mydomainv1alpha1.KruizeSpec{
-					Cluster_type: "eks", // Another unsupported cluster type
-					Namespace:    testNamespace,
-					Size:         1,
-				},
-			}
-			Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
-
-			defer func() {
-				Expect(k8sClient.Delete(ctx, kruize)).To(Succeed())
-			}()
-
-			controllerReconciler := &KruizeReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
-
-			// Attempt reconciliation - should fail early with validation error before creating any resources
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      "test-kruize-eks",
-					Namespace: "default",
-				},
-			})
-			
-			// Verify validation error is returned with correct message
-			Expect(err).To(HaveOccurred(), "Reconciliation should fail for unsupported cluster type")
-			Expect(err.Error()).To(ContainSubstring("unsupported cluster type"), "Error should indicate unsupported cluster type")
-			Expect(err.Error()).To(ContainSubstring("eks"), "Error should mention the specific invalid cluster type")
-
-			// Verify no child resources were created (validation should fail before resource creation)
-			namespaceList := &corev1.NamespaceList{}
-			err = k8sClient.List(ctx, namespaceList)
-			Expect(err).NotTo(HaveOccurred())
-			
-			namespaceExists := false
-			for _, ns := range namespaceList.Items {
-				if ns.Name == testNamespace {
-					namespaceExists = true
-					break
+				controllerReconciler := &KruizeReconciler{
+					Client: k8sClient,
+					Scheme: k8sClient.Scheme(),
 				}
-			}
-			Expect(namespaceExists).To(BeFalse(), "Namespace should not be created for invalid cluster type")
-		})
+
+				_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      testName,
+						Namespace: "default",
+					},
+				})
+				Expect(err).NotTo(HaveOccurred())
+			},
+			Entry("OpenShift cluster type", constants.ClusterTypeOpenShift, "openshift-tuning", "test-kruize-openshift"),
+			Entry("minikube cluster type", constants.ClusterTypeMinikube, "kruize", "test-kruize-minikube"),
+			Entry("kind cluster type", constants.ClusterTypeKind, "kruize", "test-kruize-kind"),
+		)
+
+		DescribeTable("should reject invalid cluster types",
+			func(clusterType, testName, expectedErrorSubstring string, shouldCheckSupportedTypes bool) {
+				kruize := &mydomainv1alpha1.Kruize{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      testName,
+						Namespace: "default",
+					},
+					Spec: mydomainv1alpha1.KruizeSpec{
+						Cluster_type: clusterType,
+						Namespace:    "test",
+						Size:         1,
+					},
+				}
+				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
+
+				defer func() {
+					Expect(k8sClient.Delete(ctx, kruize)).To(Succeed())
+				}()
+
+				controllerReconciler := &KruizeReconciler{
+					Client: k8sClient,
+					Scheme: k8sClient.Scheme(),
+				}
+
+				_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      testName,
+						Namespace: "default",
+					},
+				})
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("unsupported cluster type"))
+				if expectedErrorSubstring != "" {
+					Expect(err.Error()).To(ContainSubstring(expectedErrorSubstring))
+				}
+				if shouldCheckSupportedTypes {
+					Expect(err.Error()).To(ContainSubstring("Supported types are:"))
+				}
+			},
+			Entry("invalid cluster type", "invalid-cluster", "test-kruize-invalid", "invalid-cluster", false),
+			Entry("empty cluster type", "", "test-kruize-empty", "", false),
+			Entry("unknown cluster type with supported types message", "unknown", "test-kruize-unknown", "", true),
+		)
+
+		DescribeTable("should handle case-insensitive cluster types",
+			func(clusterType, namespace, testName string) {
+				kruize := &mydomainv1alpha1.Kruize{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      testName,
+						Namespace: "default",
+					},
+					Spec: mydomainv1alpha1.KruizeSpec{
+						Cluster_type: clusterType,
+						Namespace:    namespace,
+						Size:         1,
+					},
+				}
+				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
+
+				defer func() {
+					Expect(k8sClient.Delete(ctx, kruize)).To(Succeed())
+				}()
+
+				controllerReconciler := &KruizeReconciler{
+					Client: k8sClient,
+					Scheme: k8sClient.Scheme(),
+				}
+
+				_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      testName,
+						Namespace: "default",
+					},
+				})
+				Expect(err).NotTo(HaveOccurred())
+			},
+			Entry("OpenShift with capital O", "OpenShift", "openshift-tuning", "test-kruize-openshift-capital"),
+			Entry("MINIKUBE all caps", "MINIKUBE", "kruize", "test-kruize-minikube-caps"),
+			Entry("Kind with capital K", "Kind", "kruize", "test-kruize-kind-capital"),
+			Entry("MixedCase minikube", "MiniKube", "kruize", "test-kruize-minikube-mixed"),
+		)
+
+		DescribeTable("should not create resources for unsupported cluster types",
+			func(clusterType, testName string) {
+				testNamespace := "test-" + clusterType + "-namespace"
+				kruize := &mydomainv1alpha1.Kruize{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      testName,
+						Namespace: "default",
+					},
+					Spec: mydomainv1alpha1.KruizeSpec{
+						Cluster_type: clusterType,
+						Namespace:    testNamespace,
+						Size:         1,
+					},
+				}
+				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
+
+				defer func() {
+					Expect(k8sClient.Delete(ctx, kruize)).To(Succeed())
+				}()
+
+				controllerReconciler := &KruizeReconciler{
+					Client: k8sClient,
+					Scheme: k8sClient.Scheme(),
+				}
+
+				// Attempt reconciliation - should fail with validation error
+				_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      testName,
+						Namespace: "default",
+					},
+				})
+
+				// Verify error is returned
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("unsupported cluster type"))
+				Expect(err.Error()).To(ContainSubstring(clusterType))
+
+				// Verify no namespace was created for Kruize components
+				namespaceList := &corev1.NamespaceList{}
+				err = k8sClient.List(ctx, namespaceList)
+				Expect(err).NotTo(HaveOccurred())
+
+				namespaceExists := false
+				for _, ns := range namespaceList.Items {
+					if ns.Name == testNamespace {
+						namespaceExists = true
+						break
+					}
+				}
+				Expect(namespaceExists).To(BeFalse(), "Namespace should not be created for invalid cluster type")
+
+				// Verify no deployments were created in the test namespace
+				deploymentList := &appsv1.DeploymentList{}
+				err = k8sClient.List(ctx, deploymentList, client.InNamespace(testNamespace))
+				if err == nil {
+					Expect(deploymentList.Items).To(BeEmpty(), "No deployments should be created for invalid cluster type")
+				}
+
+				// Verify no services were created in the test namespace
+				serviceList := &corev1.ServiceList{}
+				err = k8sClient.List(ctx, serviceList, client.InNamespace(testNamespace))
+				if err == nil {
+					Expect(serviceList.Items).To(BeEmpty(), "No services should be created for invalid cluster type")
+				}
+			},
+			Entry("gke cluster type", "gke", "test-kruize-gke"),
+			Entry("eks cluster type", "eks", "test-kruize-eks"),
+		)
 	})
 
 	Context("Resource generation", func() {
 		It("should generate cluster-scoped resources for OpenShift", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeOpenShift)
 
 			clusterResources := generator.ClusterScopedResources()
 			Expect(clusterResources).NotTo(BeEmpty())
@@ -437,7 +277,7 @@ var _ = Describe("Kruize Controller", func() {
 		})
 
 		It("should generate namespaced resources for OpenShift", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeOpenShift)
 
 			namespacedResources := generator.NamespacedResources()
 			Expect(namespacedResources).NotTo(BeEmpty())
@@ -445,7 +285,7 @@ var _ = Describe("Kruize Controller", func() {
 		})
 
 		It("should generate Kubernetes cluster-scoped resources", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "minikube")
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeMinikube)
 
 			clusterResources := generator.KubernetesClusterScopedResources()
 			Expect(clusterResources).NotTo(BeEmpty())
@@ -453,7 +293,7 @@ var _ = Describe("Kruize Controller", func() {
 		})
 
 		It("should generate Kubernetes namespaced resources", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "minikube")
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeMinikube)
 
 			namespacedResources := generator.KubernetesNamespacedResources()
 			Expect(namespacedResources).NotTo(BeEmpty())
@@ -461,7 +301,7 @@ var _ = Describe("Kruize Controller", func() {
 		})
 
 		It("should use default images when not specified", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeOpenShift)
 
 			Expect(generator.Autotune_image).To(Equal("quay.io/kruize/autotune_operator:latest"))
 			Expect(generator.Autotune_ui_image).To(Equal("quay.io/kruize/kruize-ui:0.0.9"))
@@ -470,7 +310,7 @@ var _ = Describe("Kruize Controller", func() {
 		It("should use custom images when specified", func() {
 			customImage := "custom/image:v1.0"
 			customUIImage := "custom/ui:v1.0"
-			generator := utils.NewKruizeResourceGenerator("test-namespace", customImage, customUIImage, "openshift")
+			generator := utils.NewKruizeResourceGenerator("test-namespace", customImage, customUIImage, constants.ClusterTypeOpenShift)
 
 			Expect(generator.Autotune_image).To(Equal(customImage))
 			Expect(generator.Autotune_ui_image).To(Equal(customUIImage))
@@ -479,7 +319,7 @@ var _ = Describe("Kruize Controller", func() {
 
 	Context("RBAC and ConfigMap manifest generation", func() {
 		It("should generate RBAC manifests correctly for OpenShift", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeOpenShift)
 
 			clusterResources := generator.ClusterScopedResources()
 			
@@ -500,7 +340,7 @@ var _ = Describe("Kruize Controller", func() {
 		})
 
 		It("should generate RBAC manifests correctly for Kubernetes", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "minikube")
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeMinikube)
 
 			clusterResources := generator.KubernetesClusterScopedResources()
 			
@@ -521,7 +361,7 @@ var _ = Describe("Kruize Controller", func() {
 		})
 
 		It("should generate ConfigMap correctly for OpenShift", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeOpenShift)
 
 			configMap := generator.KruizeConfigMap()
 			Expect(configMap).NotTo(BeNil())
@@ -531,7 +371,7 @@ var _ = Describe("Kruize Controller", func() {
 		})
 
 		It("should generate ConfigMap correctly for Kubernetes", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "minikube")
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeMinikube)
 
 			configMap := generator.KruizeConfigMapKubernetes()
 			Expect(configMap).NotTo(BeNil())
@@ -543,7 +383,7 @@ var _ = Describe("Kruize Controller", func() {
 
 	Context("Data source configuration validation", func() {
 		It("should have valid data source configuration in ConfigMap for OpenShift", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeOpenShift)
 
 			configMap := generator.KruizeConfigMap()
 			Expect(configMap.Data).To(HaveKey("kruizeconfigjson"))
@@ -554,7 +394,7 @@ var _ = Describe("Kruize Controller", func() {
 		})
 
 		It("should have valid data source configuration in ConfigMap for Kubernetes", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "minikube")
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeMinikube)
 
 			configMap := generator.KruizeConfigMapKubernetes()
 			Expect(configMap.Data).To(HaveKey("kruizeconfigjson"))
@@ -566,56 +406,40 @@ var _ = Describe("Kruize Controller", func() {
 	})
 
 	Context("Kruize deployment manifest generation", func() {
-		It("should generate valid Kruize deployment manifest for OpenShift", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+		DescribeTable("should generate valid Kruize deployment manifest",
+			func(clusterType string, resourceMethod func(*utils.KruizeResourceGenerator) []client.Object) {
+				generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", clusterType)
+				namespacedResources := resourceMethod(generator)
 
-			namespacedResources := generator.NamespacedResources()
-			
-			// Check for Deployment resources
-			var hasKruizeDeployment, hasKruizeDBDeployment bool
-			for _, resource := range namespacedResources {
-				kind := resource.GetObjectKind().GroupVersionKind().Kind
-				name := resource.GetName()
-				
-				if kind == "Deployment" && name == "kruize" {
-					hasKruizeDeployment = true
-				}
-				if kind == "Deployment" && name == "kruize-db-deployment" {
-					hasKruizeDBDeployment = true
-				}
-			}
-			
-			Expect(hasKruizeDeployment).To(BeTrue(), "Kruize deployment should be generated")
-			Expect(hasKruizeDBDeployment).To(BeTrue(), "Kruize DB deployment should be generated")
-		})
+				// Check for Deployment resources
+				var hasKruizeDeployment, hasKruizeDBDeployment bool
+				for _, resource := range namespacedResources {
+					kind := resource.GetObjectKind().GroupVersionKind().Kind
+					name := resource.GetName()
 
-		It("should generate valid Kruize deployment manifest for Kubernetes", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "minikube")
+					if kind == "Deployment" && name == "kruize" {
+						hasKruizeDeployment = true
+					}
+					if kind == "Deployment" && name == "kruize-db-deployment" {
+						hasKruizeDBDeployment = true
+					}
+				}
 
-			namespacedResources := generator.KubernetesNamespacedResources()
-			
-			// Check for Deployment resources
-			var hasKruizeDeployment, hasKruizeDBDeployment bool
-			for _, resource := range namespacedResources {
-				kind := resource.GetObjectKind().GroupVersionKind().Kind
-				name := resource.GetName()
-				
-				if kind == "Deployment" && name == "kruize" {
-					hasKruizeDeployment = true
-				}
-				if kind == "Deployment" && name == "kruize-db-deployment" {
-					hasKruizeDBDeployment = true
-				}
-			}
-			
-			Expect(hasKruizeDeployment).To(BeTrue(), "Kruize deployment should be generated")
-			Expect(hasKruizeDBDeployment).To(BeTrue(), "Kruize DB deployment should be generated")
-		})
+				Expect(hasKruizeDeployment).To(BeTrue(), "Kruize deployment should be generated")
+				Expect(hasKruizeDBDeployment).To(BeTrue(), "Kruize DB deployment should be generated")
+			},
+			Entry("for OpenShift", constants.ClusterTypeOpenShift, func(g *utils.KruizeResourceGenerator) []client.Object {
+				return g.NamespacedResources()
+			}),
+			Entry("for Kubernetes", constants.ClusterTypeMinikube, func(g *utils.KruizeResourceGenerator) []client.Object {
+				return g.KubernetesNamespacedResources()
+			}),
+		)
 	})
 
 	Context("Pod creation validation", func() {
 		It("should generate Kruize pod specification", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeOpenShift)
 
 			namespacedResources := generator.NamespacedResources()
 			
@@ -636,7 +460,7 @@ var _ = Describe("Kruize Controller", func() {
 		})
 
 		It("should generate Kruize-ui pod specification", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeOpenShift)
 
 			namespacedResources := generator.NamespacedResources()
 			
@@ -656,7 +480,7 @@ var _ = Describe("Kruize Controller", func() {
 		})
 
 		It("should generate Kruize-db pod specification", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeOpenShift)
 
 			namespacedResources := generator.NamespacedResources()
 			
@@ -679,7 +503,7 @@ var _ = Describe("Kruize Controller", func() {
 
 	Context("Route and service creation", func() {
 		It("should generate routes for OpenShift", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeOpenShift)
 
 			namespacedResources := generator.NamespacedResources()
 			
@@ -702,7 +526,7 @@ var _ = Describe("Kruize Controller", func() {
 		})
 
 		It("should generate services for all cluster types", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeOpenShift)
 
 			namespacedResources := generator.NamespacedResources()
 			
@@ -731,7 +555,7 @@ var _ = Describe("Kruize Controller", func() {
 
 	Context("Kruize endpoints validation", func() {
 		It("should generate service with correct ports for Kruize", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeOpenShift)
 
 			namespacedResources := generator.NamespacedResources()
 			
@@ -761,7 +585,7 @@ var _ = Describe("Kruize Controller", func() {
 		})
 
 		It("should generate service with correct ports for Kruize UI", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeOpenShift)
 
 			namespacedResources := generator.NamespacedResources()
 			
@@ -791,7 +615,7 @@ var _ = Describe("Kruize Controller", func() {
 		})
 
 		It("should generate service with correct ports for Kruize DB", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeOpenShift)
 
 			namespacedResources := generator.NamespacedResources()
 			
@@ -821,7 +645,7 @@ var _ = Describe("Kruize Controller", func() {
 		})
 
 		It("should generate Kruize service with NodePort type", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeOpenShift)
 
 			namespacedResources := generator.NamespacedResources()
 			
@@ -841,7 +665,7 @@ var _ = Describe("Kruize Controller", func() {
 		})
 
 		It("should generate Kruize UI service with NodePort type", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeOpenShift)
 
 			namespacedResources := generator.NamespacedResources()
 			
@@ -861,7 +685,7 @@ var _ = Describe("Kruize Controller", func() {
 		})
 
 		It("should generate Kruize DB service with ClusterIP type", func() {
-			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", "openshift")
+			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeOpenShift)
 
 			namespacedResources := generator.NamespacedResources()
 			

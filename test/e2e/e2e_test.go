@@ -25,13 +25,14 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"github.com/kruize/kruize-operator/internal/constants"
 	"github.com/kruize/kruize-operator/test/utils"
 )
 
 var _ = Describe("controller", Ordered, func() {
 	BeforeAll(func() {
 		// Skip Prometheus Operator installation on OpenShift as it's pre-installed
-		if clusterType != "openshift" {
+		if clusterType != constants.ClusterTypeOpenShift {
 			By(fmt.Sprintf("installing prometheus operator for %s cluster", clusterType))
 			err := utils.InstallPrometheusOperator(clusterType)
 			if err != nil {
@@ -52,7 +53,7 @@ var _ = Describe("controller", Ordered, func() {
 		By("undeploying the controller-manager")
 		// Determine overlay based on cluster type
 		overlay := "local"
-		if clusterType == "openshift" {
+		if clusterType == constants.ClusterTypeOpenShift {
 			overlay = "openshift"
 		}
 		cmd := exec.Command("make", "undeploy", fmt.Sprintf("OVERLAY=%s", overlay))
@@ -78,7 +79,7 @@ var _ = Describe("controller", Ordered, func() {
 			By(fmt.Sprintf("deploying the controller-manager to namespace %s", namespace))
 			// Determine overlay based on cluster type
 			overlay := "local"
-			if clusterType == "openshift" {
+			if clusterType == constants.ClusterTypeOpenShift {
 				overlay = "openshift"
 			}
 			cmd = exec.Command("make", "deploy", fmt.Sprintf("IMG=%s", operatorImage), fmt.Sprintf("OVERLAY=%s", overlay))
@@ -146,7 +147,7 @@ var _ = Describe("controller", Ordered, func() {
 
 			// Determine expected service account based on cluster type
 			expectedSA := "default"
-			if clusterType == "openshift" {
+			if clusterType == constants.ClusterTypeOpenShift {
 				expectedSA = "kruize-sa"
 			}
 			

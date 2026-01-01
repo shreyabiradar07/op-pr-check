@@ -42,6 +42,7 @@ import (
 
 	mydomainv1alpha1 "github.com/kruize/kruize-operator/api/v1alpha1"
 
+	"github.com/kruize/kruize-operator/internal/constants"
 	"github.com/kruize/kruize-operator/internal/utils"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -242,19 +243,11 @@ func (r *KruizeReconciler) deployKruize(ctx context.Context, kruize *mydomainv1a
 	fmt.Printf("Autotune_image: '%s'\n", kruize.Spec.Autotune_image)
 	fmt.Printf("=== END DEBUG ===\n")
 
-	cluster_type := kruize.Spec.Cluster_type
+	// Normalize and validate cluster type (case-insensitive)
+	cluster_type := constants.NormalizeClusterType(kruize.Spec.Cluster_type)
 	
-	// Validate cluster type
-	validClusterTypes := []string{"openshift", "minikube", "kind"}
-	isValid := false
-	for _, validType := range validClusterTypes {
-		if cluster_type == validType {
-			isValid = true
-			break
-		}
-	}
-	if !isValid {
-		return fmt.Errorf("unsupported cluster type: %s. Supported types are: %s", cluster_type, strings.Join(validClusterTypes, ", "))
+	if !constants.IsValidClusterType(cluster_type) {
+		return fmt.Errorf("unsupported cluster type: %s. Supported types are: %s", cluster_type, strings.Join(constants.SupportedClusterTypes, ", "))
 	}
 	
 	fmt.Println("Deploying Kruize for cluster type:", cluster_type)
@@ -298,7 +291,7 @@ func (r *KruizeReconciler) deployKruizeComponents(ctx context.Context, namespace
 	var namespacedObjects []client.Object
 	var configmap client.Object
 
-	if clusterType == "openshift" {
+	if clusterType == constants.ClusterTypeOpenShift {
 		// OpenShift-specific resources
 
         	// Reconcile Namespace FIRST (no owner reference)

@@ -24,6 +24,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"github.com/kruize/kruize-operator/internal/constants"
 	"github.com/kruize/kruize-operator/test/utils"
 )
 
@@ -37,7 +38,7 @@ var (
 )
 
 func init() {
-	flag.StringVar(&clusterType, "cluster-type", "kind", "Cluster type: kind, minikube, or openshift")
+	flag.StringVar(&clusterType, "cluster-type", constants.ClusterTypeKind, "Cluster type: kind, minikube, or openshift")
 	flag.StringVar(&namespace, "namespace", "", "Target namespace for Kruize deployment (default: auto-detected based on cluster type)")
 	flag.StringVar(&operatorImage, "operator-image", "", "Operator image (default: read from Makefile)")
 	flag.StringVar(&kruizeImage, "kruize-image", "", "Kruize/Autotune image (optional)")
@@ -47,7 +48,7 @@ func init() {
 var _ = BeforeSuite(func() {
 	// Auto-detect namespace if not specified via flag
 	if namespace == "" {
-		if clusterType == "openshift" {
+		if clusterType == constants.ClusterTypeOpenShift {
 			namespace = "openshift-tuning"
 		} else {
 			namespace = "monitoring"
