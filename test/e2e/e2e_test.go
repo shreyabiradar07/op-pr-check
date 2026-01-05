@@ -62,6 +62,14 @@ var _ = Describe("controller", Ordered, func() {
 		By("uninstalling CRDs")
 		cmd = exec.Command("make", "uninstall")
 		_, _ = utils.Run(cmd)
+
+		// Skip Prometheus Operator uninstallation on OpenShift as it's pre-installed
+		if clusterType != constants.ClusterTypeOpenShift {
+			By("uninstalling prometheus operator")
+			utils.UninstallPrometheusOperator()
+		} else {
+			By("skipping prometheus operator uninstallation on OpenShift (pre-installed)")
+		}
 	})
 
 	Context("Operator", func() {

@@ -20,18 +20,20 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
-	"path/filepath"
 
+	"github.com/kruize/kruize-operator/internal/constants"
 	. "github.com/onsi/ginkgo/v2" //nolint:golint,revive
 	"gopkg.in/yaml.v3"
-	"github.com/kruize/kruize-operator/internal/constants"
 )
 
 const (
 	kubePrometheusRepo = "https://github.com/prometheus-operator/kube-prometheus.git"
 	kubePrometheusDir  = "kube-prometheus"
+	cadvisorRepo       = "https://github.com/google/cadvisor.git"
+	cadvisorDir        = "cadvisor"
 
 	certmanagerVersion = "v1.14.4"
 	certmanagerURLTmpl = "https://github.com/jetstack/cert-manager/releases/download/%s/cert-manager.yaml"
@@ -46,12 +48,66 @@ func getKubePrometheusVersion(clusterType string) string {
 	return constants.GetKubePrometheusVersion(clusterType)
 }
 
+// installCadvisor installs cadvisor for monitoring container metrics
+func installCadvisor() error {
+	// Check if cadvisor daemonset already exists
+	checkCmd := exec.Command("kubectl", "get", "daemonset", "cadvisor", "-n", "cadvisor")
+	_, err := Run(checkCmd)
+	if err == nil {
+		fmt.Fprintf(GinkgoWriter, "cadvisor already installed, skipping installation\n")
+		return nil
+	}
+
+	// Clone cadvisor repository
+	fmt.Fprintf(GinkgoWriter, "Cloning cadvisor repository...\n")
+	cloneCmd := exec.Command("git", "clone", cadvisorRepo)
+	_, err = Run(cloneCmd)
+	if err != nil {
+		// Check if directory already exists
+		if _, statErr := os.Stat(cadvisorDir); statErr == nil {
+			fmt.Fprintf(GinkgoWriter, "cadvisor directory already exists, using existing clone\n")
+		} else {
+			return fmt.Errorf("failed to clone cadvisor: %w", err)
+		}
+	}
+
+	// Apply cadvisor manifests using kustomize
+	fmt.Fprintf(GinkgoWriter, "Applying cadvisor manifests...\n")
+	cadvisorBasePath := fmt.Sprintf("%s/deploy/kubernetes/base", cadvisorDir)
+	
+	// Use kubectl kustomize to build and apply
+	kustomizeCmd := exec.Command("kubectl", "kustomize", cadvisorBasePath)
+	kustomizeOutput, err := Run(kustomizeCmd)
+	if err != nil {
+		return fmt.Errorf("failed to kustomize cadvisor manifests: %w", err)
+	}
+
+	// Apply the kustomized output
+	applyCmd := exec.Command("kubectl", "apply", "-f", "-")
+	applyCmd.Stdin = strings.NewReader(string(kustomizeOutput))
+	_, err = Run(applyCmd)
+	if err != nil {
+		return fmt.Errorf("failed to apply cadvisor manifests: %w", err)
+	}
+
+	// Wait for cadvisor daemonset to be ready
+	fmt.Fprintf(GinkgoWriter, "Waiting for cadvisor daemonset to be ready...\n")
+	waitCmd := exec.Command("kubectl", "rollout", "status", "daemonset/cadvisor", "-n", "cadvisor", "--timeout=120s")
+	_, err = Run(waitCmd)
+	if err != nil {
+		fmt.Fprintf(GinkgoWriter, "Warning: cadvisor rollout status check failed, continuing: %v\n", err)
+	}
+
+	fmt.Fprintf(GinkgoWriter, "cadvisor installation completed successfully\n")
+	return nil
+}
+
 // InstallPrometheusOperator installs kube-prometheus stack (includes Prometheus Operator, Prometheus, Grafana, etc.)
 // This installs in the monitoring namespace by default
 // clusterType: "kind" or "minikube" - determines which kube-prometheus version to use
 func InstallPrometheusOperator(clusterType string) error {
 	prometheusNS := "monitoring"
-	
+
 	// Check if prometheus-k8s statefulset already exists in monitoring namespace
 	checkCmd := exec.Command("kubectl", "get", "statefulset", "prometheus-k8s", "-n", prometheusNS)
 	_, err := Run(checkCmd)
@@ -63,8 +119,14 @@ func InstallPrometheusOperator(clusterType string) error {
 	// Get version based on cluster type
 	kubePrometheusVersion := getKubePrometheusVersion(clusterType)
 	fmt.Fprintf(GinkgoWriter, "Installing kube-prometheus %s for %s cluster in %s namespace\n", kubePrometheusVersion, clusterType, prometheusNS)
-	
-	// Step 1: Clone kube-prometheus repository
+
+	// Step 1: Install cadvisor
+	fmt.Fprintf(GinkgoWriter, "Installing cadvisor...\n")
+	if err := installCadvisor(); err != nil {
+		return fmt.Errorf("failed to install cadvisor: %w", err)
+	}
+
+	// Step 2: Clone kube-prometheus repository
 	fmt.Fprintf(GinkgoWriter, "Cloning kube-prometheus repository...\n")
 	cloneCmd := exec.Command("git", "clone", "-b", kubePrometheusVersion, kubePrometheusRepo)
 	_, err = Run(cloneCmd)
@@ -78,22 +140,18 @@ func InstallPrometheusOperator(clusterType string) error {
 	}
 
 	manifestsPath := fmt.Sprintf("%s/manifests", kubePrometheusDir)
-	
-	// Step 2: Install CRDs and namespace
-	fmt.Fprintf(GinkgoWriter, "Installing CRDs...\n")
+
+	// Step 3: Install CRDs and namespace using server-side apply
+	fmt.Fprintf(GinkgoWriter, "Installing CRDs with server-side apply...\n")
 	setupPath := fmt.Sprintf("%s/setup", manifestsPath)
-	cmd := exec.Command("kubectl", "create", "-f", setupPath)
+	cmd := exec.Command("kubectl", "apply", "-f", setupPath, "--server-side")
 	output, err := Run(cmd)
 	if err != nil {
-		// Check if CRDs already exist (which is fine)
-		if strings.Contains(string(output), "AlreadyExists") {
-			fmt.Fprintf(GinkgoWriter, "CRDs already exist, continuing...\n")
-		} else {
-			return fmt.Errorf("failed to install kube-prometheus CRDs: %w", err)
-		}
+		return fmt.Errorf("failed to install kube-prometheus CRDs: %w", err)
 	}
+	fmt.Fprintf(GinkgoWriter, "CRDs installation output: %s\n", string(output))
 
-	// Step 3: Wait for CRDs to be established
+	// Step 4: Wait for CRDs to be established
 	fmt.Fprintf(GinkgoWriter, "Waiting for CRDs to be established...\n")
 	crds := []string{
 		"servicemonitors.monitoring.coreos.com",
@@ -101,7 +159,7 @@ func InstallPrometheusOperator(clusterType string) error {
 		"alertmanagers.monitoring.coreos.com",
 		"prometheusrules.monitoring.coreos.com",
 	}
-	
+
 	for _, crd := range crds {
 		// First check if CRD exists
 		checkCRDCmd := exec.Command("kubectl", "get", "crd", crd)
@@ -118,20 +176,16 @@ func InstallPrometheusOperator(clusterType string) error {
 		}
 	}
 
-	// Step 4: Install kube-prometheus manifests
-	fmt.Fprintf(GinkgoWriter, "Installing kube-prometheus manifests...\n")
-	cmd = exec.Command("kubectl", "create", "-f", manifestsPath)
+	// Step 5: Install kube-prometheus manifests using server-side apply
+	fmt.Fprintf(GinkgoWriter, "Installing kube-prometheus manifests with server-side apply...\n")
+	cmd = exec.Command("kubectl", "apply", "-f", manifestsPath, "--server-side")
 	output, err = Run(cmd)
 	if err != nil {
-		// Check if resources already exist (which is fine)
-		if strings.Contains(string(output), "AlreadyExists") {
-			fmt.Fprintf(GinkgoWriter, "Some resources already exist, continuing...\n")
-		} else {
-			return fmt.Errorf("failed to install kube-prometheus manifests: %w", err)
-		}
+		return fmt.Errorf("failed to install kube-prometheus manifests: %w", err)
 	}
+	fmt.Fprintf(GinkgoWriter, "Manifests installation output: %s\n", string(output))
 
-	// Step 5: Wait for monitoring namespace to be ready
+	// Step 6: Wait for monitoring namespace to be ready
 	fmt.Fprintf(GinkgoWriter, "Waiting for monitoring namespace to be ready...\n")
 	waitNSCmd := exec.Command("kubectl", "wait", "--for=jsonpath={.status.phase}=Active", "--timeout=60s", "namespace/"+prometheusNS)
 	_, err = Run(waitNSCmd)
@@ -208,10 +262,10 @@ func UninstallPrometheusOperator() {
 	}
 
 	fmt.Fprintf(GinkgoWriter, "Uninstalling kube-prometheus\n")
-	
+
 	manifestsPath := fmt.Sprintf("%s/manifests", kubePrometheusDir)
 	setupPath := fmt.Sprintf("%s/setup", manifestsPath)
-	
+
 	// Check if manifests directory exists before trying to delete
 	if _, err := os.Stat(manifestsPath); err == nil {
 		// Delete manifests first
@@ -219,7 +273,7 @@ func UninstallPrometheusOperator() {
 		if _, err := Run(cmd); err != nil {
 			warnError(err)
 		}
-		
+
 		// Delete CRDs and namespace (setup)
 		cmd = exec.Command("kubectl", "delete", "--ignore-not-found=true", "-f", setupPath)
 		if _, err := Run(cmd); err != nil {
@@ -228,13 +282,49 @@ func UninstallPrometheusOperator() {
 	} else {
 		fmt.Fprintf(GinkgoWriter, "Manifests directory not found, skipping resource deletion\n")
 	}
-	
+
 	// Clean up cloned directory
 	if err := os.RemoveAll(kubePrometheusDir); err != nil {
 		fmt.Fprintf(GinkgoWriter, "Warning: failed to remove %s directory: %v\n", kubePrometheusDir, err)
 	}
 
+	// Uninstall cadvisor
+	uninstallCadvisor()
+
 	fmt.Fprintf(GinkgoWriter, "kube-prometheus uninstallation completed\n")
+}
+
+// uninstallCadvisor uninstalls cadvisor
+func uninstallCadvisor() {
+	fmt.Fprintf(GinkgoWriter, "Uninstalling cadvisor\n")
+
+	cadvisorBasePath := fmt.Sprintf("%s/deploy/kubernetes/base", cadvisorDir)
+
+	// Check if cadvisor manifests directory exists before trying to delete
+	if _, err := os.Stat(cadvisorBasePath); err == nil {
+		// Use kubectl kustomize to build and delete
+		kustomizeCmd := exec.Command("kubectl", "kustomize", cadvisorBasePath)
+		kustomizeOutput, err := Run(kustomizeCmd)
+		if err != nil {
+			fmt.Fprintf(GinkgoWriter, "Warning: failed to kustomize cadvisor manifests for deletion: %v\n", err)
+		} else {
+			// Delete the kustomized output
+			deleteCmd := exec.Command("kubectl", "delete", "--ignore-not-found=true", "-f", "-")
+			deleteCmd.Stdin = strings.NewReader(string(kustomizeOutput))
+			if _, err := Run(deleteCmd); err != nil {
+				warnError(err)
+			}
+		}
+	} else {
+		fmt.Fprintf(GinkgoWriter, "cadvisor manifests directory not found, skipping resource deletion\n")
+	}
+
+	// Clean up cloned directory
+	if err := os.RemoveAll(cadvisorDir); err != nil {
+		fmt.Fprintf(GinkgoWriter, "Warning: failed to remove %s directory: %v\n", cadvisorDir, err)
+	}
+
+	fmt.Fprintf(GinkgoWriter, "cadvisor uninstallation completed\n")
 }
 
 // UninstallCertManager uninstalls the cert manager
@@ -305,62 +395,62 @@ func GetProjectDir() (string, error) {
 // Returns the path to the temporary file, which should be cleaned up by the caller
 func UpdateKruizeSampleYAML(clusterType, namespace, kruizeImage, kruizeUIImage string) (string, error) {
 	sourcePath := "config/samples/v1alpha1_kruize.yaml"
-	
+
 	// Read the original file
 	content, err := os.ReadFile(sourcePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read sample YAML: %w", err)
 	}
-	
+
 	// Parse YAML into a generic map structure
 	var yamlData map[string]interface{}
 	if err := yaml.Unmarshal(content, &yamlData); err != nil {
 		return "", fmt.Errorf("failed to parse YAML: %w", err)
 	}
-	
+
 	// Navigate to the spec section and update fields
 	spec, ok := yamlData["spec"].(map[string]interface{})
 	if !ok {
 		return "", fmt.Errorf("invalid YAML structure: 'spec' field not found or not a map")
 	}
-	
+
 	// Update cluster_type
 	spec["cluster_type"] = clusterType
-	
+
 	// Update namespace
 	spec["namespace"] = namespace
-	
+
 	// Update autotune_image if specified
 	if kruizeImage != "" {
 		spec["autotune_image"] = kruizeImage
 		fmt.Fprintf(GinkgoWriter, "Updated autotune_image to %s\n", kruizeImage)
 	}
-	
+
 	// Update autotune_ui_image if specified
 	if kruizeUIImage != "" {
 		spec["autotune_ui_image"] = kruizeUIImage
 		fmt.Fprintf(GinkgoWriter, "Updated autotune_ui_image to %s\n", kruizeUIImage)
 	}
-	
+
 	// Marshal the updated YAML back to bytes
 	updatedContent, err := yaml.Marshal(&yamlData)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal updated YAML: %w", err)
 	}
-	
+
 	// Create a temporary file
 	tmpFile, err := os.CreateTemp("", "kruize-sample-*.yaml")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temporary file: %w", err)
 	}
 	defer tmpFile.Close()
-	
+
 	// Write the modified content to the temporary file
 	if _, err := tmpFile.Write(updatedContent); err != nil {
 		os.Remove(tmpFile.Name())
 		return "", fmt.Errorf("failed to write to temporary file: %w", err)
 	}
-	
+
 	tmpPath := tmpFile.Name()
 	fmt.Fprintf(GinkgoWriter, "Created temporary sample CR at %s with cluster_type=%s, namespace=%s\n", tmpPath, clusterType, namespace)
 	return tmpPath, nil
@@ -384,20 +474,20 @@ func ExtractImageFromMakefile() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to read Makefile: %w", err)
 	}
-	
+
 	// Extract IMAGE_TAG_BASE and VERSION
 	imageTagBaseRe := regexp.MustCompile(`IMAGE_TAG_BASE\s*\?=\s*(.+)`)
 	versionRe := regexp.MustCompile(`VERSION\s*\?=\s*(.+)`)
-	
+
 	imageTagBaseMatch := imageTagBaseRe.FindStringSubmatch(string(content))
 	versionMatch := versionRe.FindStringSubmatch(string(content))
-	
+
 	if len(imageTagBaseMatch) < 2 || len(versionMatch) < 2 {
 		return "", fmt.Errorf("failed to extract IMAGE_TAG_BASE or VERSION from Makefile")
 	}
-	
+
 	imageTagBase := strings.TrimSpace(imageTagBaseMatch[1])
 	version := strings.TrimSpace(versionMatch[1])
-	
+
 	return fmt.Sprintf("%s:%s", imageTagBase, version), nil
 }
