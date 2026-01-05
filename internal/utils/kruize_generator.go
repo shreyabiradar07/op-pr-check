@@ -3,11 +3,13 @@ package utils
 import (
 	"fmt"
 
+	"github.com/kruize/kruize-operator/internal/constants"
 	routev1 "github.com/openshift/api/route/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -42,7 +44,7 @@ func NewKruizeResourceGenerator(namespace string, autotuneImage string, autotune
 		autotuneUIImage = "quay.io/kruize/kruize-ui:0.0.9"
 	}
 	if clusterType == "" {
-		clusterType = "openshift" // Default to openshift for backward compatibility
+		clusterType = constants.ClusterTypeOpenShift // Default to openshift for backward compatibility
 	}
 	return &KruizeResourceGenerator{
 		Namespace:         namespace,
@@ -1393,6 +1395,50 @@ func (g *KruizeResourceGenerator) kruizeServiceMonitor() *monitoringv1.ServiceMo
 	}
 }
 
+// kruizeToPrometheusNetworkPolicy generates a NetworkPolicy to allow Kruize pods to access Prometheus
+func (g *KruizeResourceGenerator) kruizeToPrometheusNetworkPolicy() *networkingv1.NetworkPolicy {
+	return &networkingv1.NetworkPolicy{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "networking.k8s.io/v1",
+			Kind:       "NetworkPolicy",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kruize-to-prometheus",
+			Namespace: g.Namespace,
+		},
+		Spec: networkingv1.NetworkPolicySpec{
+			PodSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app.kubernetes.io/name": "prometheus",
+				},
+			},
+			PolicyTypes: []networkingv1.PolicyType{
+				networkingv1.PolicyTypeIngress,
+			},
+			Ingress: []networkingv1.NetworkPolicyIngressRule{
+				{
+					From: []networkingv1.NetworkPolicyPeer{
+						{
+							PodSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"app": "kruize",
+								},
+							},
+						},
+					},
+					Ports: []networkingv1.NetworkPolicyPort{
+						{
+							Protocol: func() *corev1.Protocol { p := corev1.ProtocolTCP; return &p }(),
+							Port:     &intstr.IntOrString{Type: intstr.Int, IntVal: 9090},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+
 // recommendationUpdaterClusterRoleBindingKubernetes generates the ClusterRoleBinding for the recommendation updater.
 func (g *KruizeResourceGenerator) recommendationUpdaterClusterRoleBindingKubernetes() *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
@@ -1431,6 +1477,7 @@ func (g *KruizeResourceGenerator) KubernetesClusterScopedResources() []client.Ob
 // KubernetesNamespacedResources returns namespaced resources for Kind/minikube/Kubernetes
 func (g *KruizeResourceGenerator) KubernetesNamespacedResources() []client.Object {
 	return []client.Object{
+		g.kruizeToPrometheusNetworkPolicy(),
 		g.kruizeDBDeploymentKubernetes(),
 		g.kruizeDBService(),
 		g.kruizeDeploymentKubernetes(),
