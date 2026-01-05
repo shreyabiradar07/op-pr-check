@@ -1128,7 +1128,7 @@ func (g *KruizeResourceGenerator) KruizeConfigMapKubernetes() *corev1.ConfigMap 
 	         "provider": "prometheus",
 	         "serviceName": "thanos-querier",
 	         "namespace": "monitoring",
-	         "url": "",
+	         "url": ""
 	       }
 	     ]
 	   }`, g.Namespace, g.Namespace)
