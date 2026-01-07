@@ -1,40 +1,71 @@
 # kruize-operator
-The kruize operator allows for easy deployment of the kruize project on both minikube and openshift. 
+
+A Kubernetes Operator to automate deployment of [Kruize Autotune](https://github.com/kruize/autotune), a resource optimization tool for Kubernetes workloads.
 
 ## Description
-Deploying the kruize operator will allow you to adjust varius options for your project where kruize is deployed. For an example of running kruize and the operator see https://github.com/kruize/kruize-demos. You can change the YAML file (found in samples) to deploy with whatever options you wish. 
 
-If you wish to run the prepackaged bundle you will require both the latest version of the operator-sdk and olm. You can then use operator-sdk run bundle <bundle image> to deploy it. 
+The Kruize operator simplifies deployment and management of Kruize on Kubernetes and OpenShift clusters. It provides a declarative way to configure and deploy Kruize components including the core autotune service and UI through Custom Resource Definitions (CRDs).
+
+For examples of running Kruize and the operator, see [kruize-demos](https://github.com/kruize/kruize-demos). You can customize the YAML file (found in config/samples) to deploy with your preferred options.
+
+## SEE ALSO
+
+* [autotune](https://github.com/kruize/autotune) - Main Kruize service providing resource optimization recommendations
+* [kruize-ui](https://github.com/kruize/kruize-ui) - Web interface for Kruize
+* [kruize-demos](https://github.com/kruize/kruize-demos) - Example deployments and demonstrations
 
 ## Getting Started
 
 ### Prerequisites
-- go version v1.21.0+
-- docker version 17.03+.
-- kubectl version v1.11.3+.
-- Access to a Kubernetes v1.11.3+ cluster.
+- Go version v1.24.0+
+- Docker version 17.03+
+- kubectl version v1.23.0+
+- Access to a Kubernetes v1.23.0+ or OpenShift 4.x+ cluster
+- [Prometheus](https://github.com/prometheus/prometheus) (for Minikube, Kind clusters)
 
-### To Deploy on the cluster
-**Build and push your image to the location specified by `IMG`:**
+### Deployment
+
+The operator uses Kustomize overlays to manage platform-specific configurations:
+- **OpenShift** (default): Deploys to `openshift-tuning` namespace
+- **Local (Minikube/KIND)**: Deploys to `monitoring` namespace
+
+For detailed overlay information, see [config/overlays/README.md](config/overlays/README.md).
+
+**Build and push your image:**
 
 ```sh
 make docker-build docker-push IMG=<some-registry>/kruize-operator:tag
 ```
 
-**NOTE:** This image ought to be published in the personal registry you specified.
-And it is required to have access to pull the image from the working environment.
-Make sure you have the proper permission to the registry if the above commands don’t work.
+**NOTE:** Ensure the image is published to a registry accessible from your cluster.
 
-**Install the CRDs into the cluster:**
+**Install the CRDs:**
 
 ```sh
 make install
 ```
 
-**Deploy the Manager to the cluster with the image specified by `IMG`:**
+**Deploy the operator:**
 
+_For OpenShift (default):
 ```sh
 make deploy IMG=<some-registry>/kruize-operator:tag
+# or explicitly
+make deploy-openshift IMG=<some-registry>/kruize-operator:tag
+```_
+
+For Minikube:
+```sh
+make deploy-minikube IMG=<some-registry>/kruize-operator:tag
+# or using OVERLAY variable
+make deploy OVERLAY=local IMG=<some-registry>/kruize-operator:tag
+```
+
+For KIND:
+```sh
+make deploy-kind IMG=<some-registry>/kruize-operator:tag
+# or using OVERLAY variable
+make deploy OVERLAY=local IMG=<some-registry>/kruize-operator:tag
 ```
 
 > **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
@@ -47,25 +78,39 @@ You can apply the samples (examples) from the config/sample:
 kubectl apply -k config/samples/
 ```
 
->**NOTE**: Ensure that the samples has default values to test it out.
+>**NOTE**: The default sample is configured for OpenShift. For Minikube/KIND clusters, update the `config/samples/v1alpha1_kruize.yaml` file before applying:
+>- Set `cluster_type: "minikube"` or `cluster_type: "kind"`
+>- Set `namespace: "monitoring"` (instead of `"openshift-tuning"`)
 
 ### To Uninstall
-**Delete the instances (CRs) from the cluster:**
+
+**Delete the instances (CRs):**
 
 ```sh
 kubectl delete -k config/samples/
 ```
 
-**Delete the APIs(CRDs) from the cluster:**
+**Undeploy the controller:**
+
+For OpenShift:
+```sh
+make undeploy-openshift
+```
+
+For Minikube/KIND:
+```sh
+make undeploy-minikube  # or make undeploy-kind
+```
+
+Or using OVERLAY variable:
+```sh
+make undeploy OVERLAY=local  # for Minikube/KIND
+```
+
+**Delete the CRDs:**
 
 ```sh
 make uninstall
-```
-
-**UnDeploy the controller from the cluster:**
-
-```sh
-make undeploy
 ```
 
 ## Project Distribution
@@ -91,26 +136,49 @@ Users can just run kubectl apply -f <URL for YAML BUNDLE> to install the project
 kubectl apply -f https://raw.githubusercontent.com/<org>/kruize-operator/<tag or branch>/dist/install.yaml
 ```
 
-## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
+## BUILDING
 
-**NOTE:** Run `make help` for more information on all potential `make` targets
+### Requirements
+- Go v1.24.0+
+- [operator-sdk](https://github.com/operator-framework/operator-sdk) v1.37.0+
+- Docker version 17.03+
 
-More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
+### Instructions
+
+`make generate manifests` will trigger code/YAML generation and compile the operator controller manager.
+
+`make docker-build` will build an OCI image tagged as `quay.io/kruize/kruize-operator:v0.0.2`. Override with `IMG` variable.
+
+`make bundle` will create an OLM bundle in the `bundle/` directory. `make bundle-build` will create an OCI image of this bundle.
+
+`make catalog-build` will build an OCI image of the operator catalog.
+
+## DEVELOPMENT
+
+Run the operator locally:
+```sh
+make run
+```
+This runs the controller manager as a process on your local machine. Note that it will not have access to certain in-cluster resources.
+
+## TESTING
+
+**Run unit tests:**
+```sh
+make test
+```
+
+**Run end-to-end tests:**
+
+The `test-e2e` target supports optional flags for customizing the test environment:
+
+```sh
+# Default (OpenShift cluster)
+make test-e2e
+```
+This requires a Kubernetes or OpenShift cluster. Recommended: Minikube, KIND, or CodeReady Containers.
 
 ## License
 
-Copyright 2024.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+Apache License 2.0, see [LICENSE](/LICENSE).
 
