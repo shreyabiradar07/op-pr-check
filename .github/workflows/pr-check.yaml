@@ -150,7 +150,11 @@ jobs:
 
       - name: Run E2E tests
         run: |
-          make test-e2e 2>&1 | tee /tmp/e2e-test-output.log
+          go test ./test/e2e/ -v -ginkgo.v \
+            --cluster-type=kind \
+            --operator-image=${{ env.OPERATOR_IMAGE }} \
+            --namespace=${{ env.NAMESPACE }} \
+            2>&1 | tee /tmp/e2e-test-output.log
 
       - name: Upload E2E test logs
         if: always()
