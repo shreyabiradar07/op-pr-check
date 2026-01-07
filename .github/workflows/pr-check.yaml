@@ -44,24 +44,25 @@ jobs:
           go mod download
           go mod verify
 
-      - name: Run linter
+      - name: Create Kind config
         run: |
-          make lint || echo "Linting completed with warnings"
+          cat <<EOF > /tmp/kind-config.yaml
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+          - role: control-plane
+            extraPortMappings:
+            - containerPort: 30080
+              hostPort: 30080
+              protocol: TCP
+          EOF
 
       - name: Set up Kind cluster
         uses: helm/kind-action@v1
         with:
           cluster_name: kruize-test-cluster
           wait: 120s
-          config: |
-            kind: Cluster
-            apiVersion: kind.x-k8s.io/v1alpha4
-            nodes:
-            - role: control-plane
-              extraPortMappings:
-              - containerPort: 30080
-                hostPort: 30080
-                protocol: TCP
+          config: /tmp/kind-config.yaml
 
       - name: Verify Kind cluster
         run: |
