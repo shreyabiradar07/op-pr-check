@@ -404,6 +404,19 @@ func (g *KruizeResourceGenerator) KruizeConfigMap() *corev1.ConfigMap {
                 "tokenFilePath": "/var/run/secrets/kubernetes.io/serviceaccount/token"
               }
           }
+        },
+        {
+          "name": "thanos-1",
+          "provider": "prometheus",
+          "serviceName": "thanos-querier",
+          "namespace": "openshift-monitoring",
+          "url": "",
+          "authentication": {
+              "type": "bearer",
+              "credentials": {
+                "tokenFilePath": "/var/run/secrets/kubernetes.io/serviceaccount/token"
+              }
+          }
         }
       ]
     }`, g.Namespace, g.Namespace)
@@ -1111,7 +1124,14 @@ func (g *KruizeResourceGenerator) KruizeConfigMapKubernetes() *corev1.ConfigMap 
 	         "serviceName": "prometheus-k8s",
 	         "namespace": "monitoring",
 	         "url": ""
-	       }
+	       },
+           {
+             "name": "thanos-1",
+             "provider": "prometheus",
+             "serviceName": "thanos-k8s",
+             "namespace": "monitoring",
+             "url": ""
+           }
 	     ]
 	   }`, g.Namespace, g.Namespace)
 
