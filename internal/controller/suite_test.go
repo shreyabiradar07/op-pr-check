@@ -72,7 +72,11 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
+<<<<<<< HEAD
 	err = kruizev1alpha1.AddToScheme(scheme.Scheme)
+=======
+	err = mydomainv1alpha1.AddToScheme(scheme.Scheme)
+>>>>>>> 6728aac (Add base operator)
 	Expect(err).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:scheme

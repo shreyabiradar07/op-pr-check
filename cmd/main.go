@@ -34,7 +34,11 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+<<<<<<< HEAD
 	kruizev1alpha1 "github.com/kruize/kruize-operator/api/v1alpha1"
+=======
+	mydomainv1alpha1 "github.com/kruize/kruize-operator/api/v1alpha1"
+>>>>>>> 6728aac (Add base operator)
 	"github.com/kruize/kruize-operator/internal/controller"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	//+kubebuilder:scaffold:imports
@@ -49,7 +53,11 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
+<<<<<<< HEAD
 	utilruntime.Must(kruizev1alpha1.AddToScheme(scheme))
+=======
+	utilruntime.Must(mydomainv1alpha1.AddToScheme(scheme))
+>>>>>>> 6728aac (Add base operator)
 	//+kubebuilder:scaffold:scheme
 	utilruntime.Must(routev1.AddToScheme(scheme))
 	utilruntime.Must(monitoringv1.AddToScheme(scheme))
@@ -108,10 +116,14 @@ func main() {
 		WebhookServer:          webhookServer,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
+<<<<<<< HEAD
 		// NOTE: Do not change LeaderElectionID in future releases without a migration plan.
 		// Changing it causes a new leader election lease and can lead to multiple active leaders
 		// during rolling updates.
 		LeaderElectionID:       "7ef00355.kruize.io",
+=======
+		LeaderElectionID:       "7ef00355.my.domain",
+>>>>>>> 6728aac (Add base operator)
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
