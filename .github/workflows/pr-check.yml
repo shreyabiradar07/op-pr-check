@@ -44,24 +44,25 @@ jobs:
           go mod download
           go mod verify
 
-      - name: Run linter
+      - name: Create Kind config
         run: |
-          make lint || echo "Linting completed with warnings"
+          cat <<EOF > /tmp/kind-config.yaml
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+          - role: control-plane
+            extraPortMappings:
+            - containerPort: 30080
+              hostPort: 30080
+              protocol: TCP
+          EOF
 
       - name: Set up Kind cluster
         uses: helm/kind-action@v1
         with:
           cluster_name: kruize-test-cluster
           wait: 120s
-          config: |
-            kind: Cluster
-            apiVersion: kind.x-k8s.io/v1alpha4
-            nodes:
-            - role: control-plane
-              extraPortMappings:
-              - containerPort: 30080
-                hostPort: 30080
-                protocol: TCP
+          config: /tmp/kind-config.yaml
 
       - name: Verify Kind cluster
         run: |
@@ -77,19 +78,59 @@ jobs:
         run: |
           kind load docker-image ${{ env.OPERATOR_IMAGE }} --name kruize-test-cluster
 
-      - name: Install Prometheus Operator
+      - name: Install Prometheus with cadvisor
         run: |
-          kubectl create -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/bundle.yaml
-          echo "Waiting for Prometheus Operator to be ready..."
-          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=prometheus-operator -n default --timeout=300s || true
+          PROMETHEUS_TAG="v0.13.0"
+          PROMETHEUS_NS="monitoring"
+          
+          echo "Info: Checking if Prometheus is already installed..."
+          if kubectl get pods -n ${PROMETHEUS_NS} 2>/dev/null | grep -q "prometheus-k8s-1"; then
+            echo "Prometheus is already installed and running."
+          else
+            echo "Info: Installing cadvisor and Prometheus"
+          
+            # Create downloads directory
+            mkdir -p /tmp/kind_downloads
+            cd /tmp/kind_downloads
+          
+            # Install cadvisor
+            echo "Info: Downloading cadvisor git"
+            git clone https://github.com/google/cadvisor.git 2>/dev/null || echo "cadvisor already cloned"
+            cd cadvisor/deploy/kubernetes/base
+            echo "Info: Installing cadvisor"
+            kubectl kustomize . | kubectl apply -f-
+            cd /tmp/kind_downloads
+          
+            # Install Prometheus
+            echo "Info: Downloading prometheus git release - ${PROMETHEUS_TAG}"
+            git clone -b ${PROMETHEUS_TAG} https://github.com/coreos/kube-prometheus.git 2>/dev/null || echo "kube-prometheus already cloned"
+            cd kube-prometheus/manifests
+          
+            echo "Info: Installing prometheus setup"
+            kubectl apply -f setup --server-side
+          
+            echo "Info: Installing prometheus manifests"
+            kubectl apply -f . --server-side
+          
+            # Wait for prometheus-k8s-1 pod to be spawned
+            echo -n "Info: Waiting for Prometheus Pods to get spawned..."
+            for i in {1..60}; do
+              if kubectl get pods -n ${PROMETHEUS_NS} 2>/dev/null | grep -q "prometheus-k8s-1"; then
+                echo "done"
+                break
+              fi
+              echo -n "."
+              sleep 5
+            done
+          
+            echo "Info: Verifying Prometheus installation..."
+            kubectl get statefulset prometheus-k8s -n ${PROMETHEUS_NS}
+            kubectl get svc prometheus-k8s -n ${PROMETHEUS_NS}
+            kubectl get pods -n ${PROMETHEUS_NS} -l app.kubernetes.io/name=prometheus
+          
+            echo "Info: Prometheus installation completed successfully"
+          fi
 
-      - name: Create operator namespace
-        run: |
-          kubectl create namespace ${{ env.NAMESPACE }} || true
-
-      - name: Install CRDs
-        run: |
-          make install
 
       - name: Reduce operator resource requests for Kind
         run: |
@@ -107,106 +148,21 @@ jobs:
           grep -A 3 "requests:" config/manager/manager.yaml
           grep -A 3 "requests:" config/default/manager_auth_proxy_patch.yaml
 
-      - name: Deploy operator
+      - name: Run E2E tests
         run: |
-          make deploy IMG=${{ env.OPERATOR_IMAGE }}
+          make test-e2e \
+            CLUSTER_TYPE=kind \
+            OPERATOR_IMAGE=${{ env.OPERATOR_IMAGE }} \
+            NAMESPACE=${{ env.NAMESPACE }} \
+            2>&1 | tee /tmp/e2e-test-output.log
 
-      - name: Wait for operator deployment
-        run: |
-          echo "Waiting for controller-manager to be ready..."
-          kubectl wait --for=condition=available deployment/kruize-operator-controller-manager \
-            -n ${{ env.NAMESPACE }} --timeout=300s
-
-      - name: Verify operator pod is running
-        run: |
-          kubectl get pods -n ${{ env.NAMESPACE }}
-          POD_NAME=$(kubectl get pods -n ${{ env.NAMESPACE }} -l control-plane=controller-manager -o jsonpath='{.items[0].metadata.name}')
-          echo "Operator pod: $POD_NAME"
-          kubectl get pod $POD_NAME -n ${{ env.NAMESPACE }} -o jsonpath='{.status.phase}' | grep -q "Running"
-          echo "✓ Operator pod is running"
-
-      - name: Check operator logs
+      - name: Upload E2E test logs
         if: always()
-        run: |
-          echo "=== Operator Logs ==="
-          kubectl logs -n ${{ env.NAMESPACE }} -l control-plane=controller-manager --tail=100 || true
-
-      - name: Deploy Kruize CR
-        run: |
-          # Update CR for Kind cluster with monitoring namespace
-          cp config/samples/_v1alpha1_kruize.yaml /tmp/kruize-cr.yaml
-          
-          # Update cluster_type to kind and namespace to monitoring
-          sed -i 's/cluster_type:.*/cluster_type: kind/' /tmp/kruize-cr.yaml
-          sed -i 's/namespace:.*/namespace: monitoring/' /tmp/kruize-cr.yaml
-          
-          echo "Updated Kruize CR:"
-          cat /tmp/kruize-cr.yaml
-          
-          kubectl apply -f /tmp/kruize-cr.yaml -n monitoring
-          echo "Kruize CR deployed with cluster_type=kind and namespace=monitoring"
-
-      - name: Verify Kruize deployment
-        run: |
-          echo "Waiting for monitoring namespace..."
-          timeout 120s bash -c 'until kubectl get namespace monitoring; do sleep 5; done'
-          
-          echo "Waiting for Kruize deployment..."
-          kubectl wait --for=condition=available deployment/kruize \
-            -n monitoring--timeout=300s || true
-          
-          echo "Waiting for Kruize DB deployment..."
-          kubectl wait --for=condition=available deployment/kruize-db \
-            -n monitoring --timeout=300s || true
-
-      - name: Verify Kruize components
-        run: |
-          echo "=== Kruize Namespace Resources ==="
-          kubectl get all -n monitoring
-          
-          echo "=== Kruize ServiceAccount ==="
-          kubectl get serviceaccount kruize-sa -n monitoring
-          
-          echo "=== Kruize ConfigMap ==="
-          kubectl get configmap kruizeconfig -n monitoring -o yaml
-          
-          echo "=== Kruize Deployment Status ==="
-          kubectl get deployment kruize -n monitoring -o jsonpath='{.status.readyReplicas}'
-          
-          echo "=== Kruize DB Deployment Status ==="
-          kubectl get deployment kruize-db -n monitoring -o jsonpath='{.status.readyReplicas}'
-
-      - name: Test Kruize API health
-        run: |
-          echo "Testing Kruize API health endpoint..."
-          kubectl exec deployment/kruize -n monitoring -- curl -s localhost:8080/health || echo "Health check failed"
-
-      - name: Collect logs on failure
-        if: failure()
-        run: |
-          echo "=== Operator Logs ==="
-          kubectl logs -n ${{ env.NAMESPACE }} -l control-plane=controller-manager --tail=200 || true
-          
-          echo "=== Kruize Logs ==="
-          kubectl logs -n monitoring deployment/kruize --tail=200 || true
-          
-          echo "=== Kruize DB Logs ==="
-          kubectl logs -n monitoring deployment/kruize-db --tail=200 || true
-          
-          echo "=== All Pods Status ==="
-          kubectl get pods --all-namespaces
-          
-          echo "=== Events ==="
-          kubectl get events --all-namespaces --sort-by='.lastTimestamp'
-
-      - name: Cleanup
-        if: always()
-        run: |
-          echo "Cleaning up resources..."
-          kubectl delete -f /tmp/kruize-cr.yaml -n ${{ env.NAMESPACE }} --ignore-not-found=true || true
-          make undeploy || true
-          make uninstall || true
-          kubectl delete namespace ${{ env.NAMESPACE }} --ignore-not-found=true || true
+        uses: actions/upload-artifact@v4
+        with:
+          name: operator-e2e-test-logs-pr-${{ github.event.pull_request.number }}
+          path: /tmp/e2e-test-output.log
+          retention-days: 1
 
       - name: Summary
         if: success()
