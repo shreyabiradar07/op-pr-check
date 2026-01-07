@@ -1,0 +1,41 @@
+linters-settings:
+  govet:
+    check-shadowing: true
+  gocyclo:
+    min-complexity: 15
+  dupl:
+    threshold: 100
+  goconst:
+    min-len: 2
+    min-occurrences: 2
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gofmt
+    - goimports
+
+issues:
+  exclude-rules:
+    # Exclude test files from typecheck errors related to test frameworks
+    - path: _test\.go
+      linters:
+        - typecheck
+    - path: test/
+      linters:
+        - typecheck
+
+run:
+  timeout: 5m
+  tests: false
+  skip-dirs:
+    - bin
+    - vendor
+
+# Made with Bob
