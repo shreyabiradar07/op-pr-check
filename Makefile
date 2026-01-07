@@ -115,9 +115,14 @@ test: manifests generate fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
 
 # Utilize Kind or modify the e2e tests to load the image locally, enabling compatibility with other vendors.
+# Usage examples:
+#   make test-e2e (default is openshift cluster)
+#   make test-e2e CLUSTER_TYPE=kind
+#   make test-e2e CLUSTER_TYPE=kind NAMESPACE=monitoring KRUIZE_IMAGE=quay.io/kruize/autotune_operator:latest KRUIZE_UI_IMAGE=quay.io/kruize/kruize-ui:latest
+#   make test-e2e CLUSTER_TYPE=kind KRUIZE_IMAGE=quay.io/kruize/autotune:latest OPERATOR_IMAGE=quay.io/kruize/kruize-operator:0.0.2
 .PHONY: test-e2e  # Run the e2e tests against a Kind k8s instance that is spun up.
 test-e2e:
-	go test ./test/e2e/ -v -ginkgo.v
+	@go test ./test/e2e/ -v -ginkgo.v $(if $(CLUSTER_TYPE),--cluster-type=$(CLUSTER_TYPE))$(if $(KRUIZE_IMAGE), --kruize-image=$(KRUIZE_IMAGE))$(if $(OPERATOR_IMAGE), --operator-image=$(OPERATOR_IMAGE))$(if $(KRUIZE_UI_IMAGE), --kruize-ui-image=$(KRUIZE_UI_IMAGE))$(if $(NAMESPACE), --namespace=$(NAMESPACE))
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter & yamllint
