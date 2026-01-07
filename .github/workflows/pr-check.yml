@@ -13,8 +13,8 @@ env:
   NAMESPACE: monitoring
 
 jobs:
-  build-deploy-verify:
-    name: Build, Deploy and Verify Operator
+  build-and-test:
+    name: Build and Test Operator
     runs-on: ubuntu-latest
     
     steps:
