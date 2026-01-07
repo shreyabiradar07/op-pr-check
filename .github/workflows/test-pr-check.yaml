@@ -242,11 +242,13 @@ jobs:
 
       - name: Test Kruize API health
         run: |
+          sleep 10
           echo "Testing Kruize API health endpoint..."
           kubectl exec deployment/kruize -n monitoring -- curl -s localhost:8080/health || echo "Health check failed"
 
       - name: Test Kruize datasources API
         run: |
+          sleep 10
           echo "Testing Kruize datasources API endpoint..."
           echo "=== /datasources Output ==="
           kubectl exec deployment/kruize -n monitoring -- curl -s localhost:8080/datasources || echo "Datasources API call failed"
