@@ -1,4 +1,4 @@
-name: PR Check - Build, Deploy and Verify
+name: Test on Pull Request
 
 on:
   pull_request:
@@ -90,6 +90,22 @@ jobs:
       - name: Install CRDs
         run: |
           make install
+
+      - name: Reduce operator resource requests for Kind
+        run: |
+          echo "Reducing CPU/memory requests for resource-constrained Kind cluster..."
+          
+          # Reduce manager container resources
+          sed -i 's/cpu: 10m/cpu: 1m/' config/manager/manager.yaml
+          sed -i 's/memory: 64Mi/memory: 32Mi/' config/manager/manager.yaml
+          
+          # Reduce kube-rbac-proxy resources
+          sed -i 's/cpu: 5m/cpu: 1m/' config/default/manager_auth_proxy_patch.yaml
+          sed -i 's/memory: 64Mi/memory: 32Mi/' config/default/manager_auth_proxy_patch.yaml
+          
+          echo "Updated resource requests:"
+          grep -A 3 "requests:" config/manager/manager.yaml
+          grep -A 3 "requests:" config/default/manager_auth_proxy_patch.yaml
 
       - name: Deploy operator
         run: |
