@@ -132,7 +132,7 @@ func (r *KruizeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	fmt.Println("Deployment initiated, waiting for pods to be ready")
 
-	var targetNamespace = kruize.Spec.namespace
+	var targetNamespace = kruize.Spec.Namespace
 
 	// Wait for Kruize pods to be ready
 	err = r.waitForKruizePods(ctx, targetNamespace, 5*time.Minute)
