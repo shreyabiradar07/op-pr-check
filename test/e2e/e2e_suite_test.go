@@ -117,7 +117,8 @@ var _ = BeforeSuite(func() {
 		var err error
 		operatorImage, err = utils.ExtractImageFromMakefile()
 		if err != nil {
-			operatorImage = "quay.io/kruize/kruize-operator:0.0.2"
+			fmt.Fprintf(os.Stderr, "Error reading Makefile: %v\n", err)
+			os.Exit(1)
 		}
 	}
 

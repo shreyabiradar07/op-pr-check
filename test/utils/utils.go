@@ -470,14 +470,21 @@ func CleanupTempFile(path string) {
 
 // ExtractImageFromMakefile extracts the operator image from Makefile
 func ExtractImageFromMakefile() (string, error) {
-	content, err := os.ReadFile("Makefile")
+	projectDir, err := GetProjectDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get project directory: %w", err)
+	}
+	
+	makefilePath := filepath.Join(projectDir, "Makefile")
+	content, err := os.ReadFile(makefilePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read Makefile: %w", err)
 	}
 
 	// Extract IMAGE_TAG_BASE and VERSION
-	imageTagBaseRe := regexp.MustCompile(`IMAGE_TAG_BASE\s*\?=\s*(.+)`)
-	versionRe := regexp.MustCompile(`VERSION\s*\?=\s*(.+)`)
+	// Use [ \t]* to only match spaces/tabs, not newlines
+	imageTagBaseRe := regexp.MustCompile(`(?m)^IMAGE_TAG_BASE[ \t]*\?=[ \t]*([^\n\r]*)$`)
+	versionRe := regexp.MustCompile(`(?m)^VERSION[ \t]*\?=[ \t]*([^\n\r]*)$`)
 
 	imageTagBaseMatch := imageTagBaseRe.FindStringSubmatch(string(content))
 	versionMatch := versionRe.FindStringSubmatch(string(content))
@@ -488,6 +495,14 @@ func ExtractImageFromMakefile() (string, error) {
 
 	imageTagBase := strings.TrimSpace(imageTagBaseMatch[1])
 	version := strings.TrimSpace(versionMatch[1])
+	
+	if imageTagBase == "" {
+		return "", fmt.Errorf("IMAGE_TAG_BASE is empty in Makefile")
+	}
+	
+	if version == "" {
+		return "", fmt.Errorf("VERSION is empty in Makefile")
+	}
 
 	return fmt.Sprintf("%s:%s", imageTagBase, version), nil
 }
