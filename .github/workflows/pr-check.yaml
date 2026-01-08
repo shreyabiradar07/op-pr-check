@@ -1,4 +1,4 @@
-name: Test on Pull Request
+name: Build and Test Operator
 
 on:
   pull_request:
@@ -8,13 +8,13 @@ on:
     types: [opened, synchronize, reopened]
 
 env:
-  GO_VERSION: '1.24'
-  OPERATOR_IMAGE: quay.io/shbirada/pr_check:pr-${{ github.event.pull_request.number }}
+  GO_VERSION: '1.23' 
+  OPERATOR_IMAGE: quay.io/kruize-operator/pr_check:pr-${{ github.event.pull_request.number }}
   NAMESPACE: monitoring
 
 jobs:
-  build-deploy-verify:
-    name: Build, Deploy and Verify Operator
+  build-and-test:
+    name: Build and Test Operator
     runs-on: ubuntu-latest
     
     steps:
@@ -150,11 +150,7 @@ jobs:
 
       - name: Run E2E tests
         run: |
-          go test ./test/e2e/ -v -ginkgo.v \
-            --cluster-type=kind \
-            --operator-image=${{ env.OPERATOR_IMAGE }} \
-            --namespace=${{ env.NAMESPACE }} \
-            2>&1 | tee /tmp/e2e-test-output.log
+          make test-e2e CLUSTER_TYPE=kind OPERATOR_IMAGE=${{ env.OPERATOR_IMAGE }} NAMESPACE=${{ env.NAMESPACE }} 2>&1 | tee /tmp/e2e-test-output.log
 
       - name: Upload E2E test logs
         if: always()
