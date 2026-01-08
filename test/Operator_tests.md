@@ -8,10 +8,11 @@ This directory contains overview of tests for the Kruize Operator. Unit tests fo
 
 ```
 test/
-├── Test_reame.md                    # This file - test documentation
+├── Operator_tests.md           # Operator tests documentation
 ├── e2e/                        # End-to-end tests (see e2e_test.md)
 │   ├── e2e_suite_test.go
 │   └── e2e_test.go
+│   └── e2e_test.md
 └── utils/                      # Test utilities
     └── utils.go
 ```

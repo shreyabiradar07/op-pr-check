@@ -70,3 +70,45 @@ go test ./test/e2e/... -v -ginkgo.focus="should deploy Kruize" -- -cluster-type=
 go test -c ./test/e2e/...
 ./e2e.test -help
 ```
+
+## Using Make Commands
+
+The project provides a convenient `make test-e2e` target that simplifies running e2e tests with various configurations.
+
+### Available Make Parameters
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `CLUSTER_TYPE` | Cluster type: `kind`, `minikube`, or `openshift` (default: `openshift`) | `CLUSTER_TYPE=kind` |
+| `NAMESPACE` | Target namespace for deployment | `NAMESPACE=monitoring` |
+| `OPERATOR_IMAGE` | Custom operator image | `OPERATOR_IMAGE=quay.io/kruize/kruize-operator:0.0.2` |
+| `KRUIZE_IMAGE` | Custom Kruize/Autotune image | `KRUIZE_IMAGE=quay.io/kruize/autotune_operator:latest` |
+| `KRUIZE_UI_IMAGE` | Custom Kruize UI image | `KRUIZE_UI_IMAGE=quay.io/kruize/kruize-ui:latest` |
+
+### Make Usage Examples
+
+```bash
+# Run on openshift cluster (default)
+make test-e2e
+
+# Run on kind cluster
+make test-e2e CLUSTER_TYPE=kind
+
+# Run on minikube cluster
+make test-e2e CLUSTER_TYPE=minikube
+
+# Custom namespace on kind
+make test-e2e CLUSTER_TYPE=kind NAMESPACE=monitoring
+
+# Custom Kruize images on kind
+make test-e2e CLUSTER_TYPE=kind \
+  KRUIZE_IMAGE=quay.io/kruize/autotune_operator:latest \
+  KRUIZE_UI_IMAGE=quay.io/kruize/kruize-ui:latest
+
+# Complete custom setup
+make test-e2e CLUSTER_TYPE=kind \
+  NAMESPACE=monitoring \
+  OPERATOR_IMAGE=quay.io/kruize/kruize-operator:0.0.2 \
+  KRUIZE_IMAGE=quay.io/kruize/autotune:latest \
+  KRUIZE_UI_IMAGE=quay.io/kruize/kruize-ui:latest
+```
