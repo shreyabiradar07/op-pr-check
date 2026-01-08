@@ -245,8 +245,7 @@ func (r *KruizeReconciler) deployKruize(ctx context.Context, kruize *mydomainv1a
 	fmt.Printf("=== END DEBUG ===\n")
 
 	// Normalize and validate cluster type (case-insensitive)
-	cluster_type := constants.NormalizeClusterType(kruize.Spec.Cluster_type)
-	
+	cluster_type := kruize.Spec.Cluster_type
 	if !constants.IsValidClusterType(cluster_type) {
 		return fmt.Errorf("unsupported cluster type: %s. Supported types are: %s", cluster_type, strings.Join(constants.SupportedClusterTypes, ", "))
 	}
