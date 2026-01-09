@@ -201,6 +201,29 @@ rules:
   - list
   - watch
 - apiGroups:
+  - kruize.io
+  resources:
+  - kruizes
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+- apiGroups:
+  - kruize.io
+  resources:
+  - kruizes/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - kruize.io
+  resources:
+  - kruizes/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - metrics.k8s.io
   resources:
   - nodes
@@ -271,29 +294,6 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - my.domain
-  resources:
-  - kruizes
-  verbs:
-  - create
-  - get
-  - list
-  - watch
-- apiGroups:
-  - my.domain
-  resources:
-  - kruizes/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - my.domain
-  resources:
-  - kruizes/status
-  verbs:
-  - get
-  - patch
-  - update
 - apiGroups:
   - networking.k8s.io
   resources:

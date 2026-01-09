@@ -54,9 +54,9 @@ type KruizeReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=my.domain,resources=kruizes,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=my.domain,resources=kruizes/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=my.domain,resources=kruizes/finalizers,verbs=update
+//+kubebuilder:rbac:groups=kruize.io,resources=kruizes,verbs=get;list;watch;create
+//+kubebuilder:rbac:groups=kruize.io,resources=kruizes/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=kruize.io,resources=kruizes/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create
