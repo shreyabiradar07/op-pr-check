@@ -8,7 +8,7 @@ metadata:
   name: kruize-editor-role
 rules:
 - apiGroups:
-  - my.domain
+  - kruize.io
   resources:
   - kruizes
   verbs:
@@ -20,7 +20,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - my.domain
+  - kruize.io
   resources:
   - kruizes/status
   verbs:
