@@ -42,6 +42,7 @@ import (
 
 	mydomainv1alpha1 "github.com/kruize/kruize-operator/api/v1alpha1"
 
+	"github.com/kruize/kruize-operator/internal/constants"
 	"github.com/kruize/kruize-operator/internal/utils"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -78,6 +79,7 @@ type KruizeReconciler struct {
 //+kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=get;list;watch;create;update;patch
 //+kubebuilder:rbac:groups=extensions,resources=ingresses,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create
+//+kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,verbs=get;create;use
 //+kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;create;list;watch
 //+kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create
@@ -242,7 +244,12 @@ func (r *KruizeReconciler) deployKruize(ctx context.Context, kruize *mydomainv1a
 	fmt.Printf("Autotune_image: '%s'\n", kruize.Spec.Autotune_image)
 	fmt.Printf("=== END DEBUG ===\n")
 
+	// Normalize and validate cluster type (case-insensitive)
 	cluster_type := kruize.Spec.Cluster_type
+	if !constants.IsValidClusterType(cluster_type) {
+		return fmt.Errorf("unsupported cluster type: %s. Supported types are: %s", cluster_type, strings.Join(constants.SupportedClusterTypes, ", "))
+	}
+	
 	fmt.Println("Deploying Kruize for cluster type:", cluster_type)
 
 	var autotune_ns = kruize.Spec.Namespace
@@ -284,7 +291,7 @@ func (r *KruizeReconciler) deployKruizeComponents(ctx context.Context, namespace
 	var namespacedObjects []client.Object
 	var configmap client.Object
 
-	if clusterType == "openshift" {
+	if clusterType == constants.ClusterTypeOpenShift {
 		// OpenShift-specific resources
 
         	// Reconcile Namespace FIRST (no owner reference)
