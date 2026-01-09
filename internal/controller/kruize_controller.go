@@ -40,7 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	mydomainv1alpha1 "github.com/kruize/kruize-operator/api/v1alpha1"
+	kruizev1alpha1 "github.com/kruize/kruize-operator/api/v1alpha1"
 
 	"github.com/kruize/kruize-operator/internal/constants"
 	"github.com/kruize/kruize-operator/internal/utils"
@@ -112,7 +112,7 @@ func (r *KruizeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	logger := log.FromContext(ctx)
 	logger.Info(fmt.Sprintf("Reconciling Kruize %v", req.NamespacedName))
 
-	kruize := &mydomainv1alpha1.Kruize{}
+	kruize := &kruizev1alpha1.Kruize{}
 	err := r.Get(ctx, req.NamespacedName, kruize)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -235,7 +235,7 @@ func (r *KruizeReconciler) checkKruizePodsStatus(ctx context.Context, namespace 
 	return readyCount, len(kruizePods), podStatus, nil
 }
 
-func (r *KruizeReconciler) deployKruize(ctx context.Context, kruize *mydomainv1alpha1.Kruize) error {
+func (r *KruizeReconciler) deployKruize(ctx context.Context, kruize *kruizev1alpha1.Kruize) error {
 	// Add debug output
 	fmt.Printf("=== DEBUG: Kruize Spec Fields ===\n")
 	fmt.Printf("Cluster_type: '%s'\n", kruize.Spec.Cluster_type)
@@ -264,7 +264,7 @@ func (r *KruizeReconciler) deployKruize(ctx context.Context, kruize *mydomainv1a
 	return nil
 }
 
-func (r *KruizeReconciler) deployKruizeComponents(ctx context.Context, namespace string, clusterType string, kruize *mydomainv1alpha1.Kruize) error {
+func (r *KruizeReconciler) deployKruizeComponents(ctx context.Context, namespace string, clusterType string, kruize *kruizev1alpha1.Kruize) error {
 
 	logger := log.FromContext(ctx)
 
@@ -436,7 +436,7 @@ func (r *KruizeReconciler) applyYAMLString(ctx context.Context, yamlContent stri
 func (r *KruizeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	fmt.Println("Setting up the controller with the Manager")
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&mydomainv1alpha1.Kruize{}).
+		For(&kruizev1alpha1.Kruize{}).
 		Complete(r)
 }
 
