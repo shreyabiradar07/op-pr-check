@@ -31,7 +31,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	mydomainv1alpha1 "github.com/kruize/kruize-operator/api/v1alpha1"
+	kruizev1alpha1 "github.com/kruize/kruize-operator/api/v1alpha1"
 	"github.com/kruize/kruize-operator/internal/constants"
 	"github.com/kruize/kruize-operator/internal/utils"
 )
@@ -79,12 +79,12 @@ var _ = Describe("Kruize Controller", func() {
 	Context("When reconciling different cluster types", func() {
 		DescribeTable("should handle supported cluster types",
 			func(clusterType, namespace, testName string) {
-				kruize := &mydomainv1alpha1.Kruize{
+				kruize := &kruizev1alpha1.Kruize{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      testName,
 						Namespace: "default",
 					},
-					Spec: mydomainv1alpha1.KruizeSpec{
+					Spec: kruizev1alpha1.KruizeSpec{
 						Cluster_type: clusterType,
 						Namespace:    namespace,
 						Size:         1,
@@ -116,12 +116,12 @@ var _ = Describe("Kruize Controller", func() {
 
 		DescribeTable("should reject invalid cluster types",
 			func(clusterType, testName, expectedErrorSubstring string, shouldCheckSupportedTypes bool) {
-				kruize := &mydomainv1alpha1.Kruize{
+				kruize := &kruizev1alpha1.Kruize{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      testName,
 						Namespace: "default",
 					},
-					Spec: mydomainv1alpha1.KruizeSpec{
+					Spec: kruizev1alpha1.KruizeSpec{
 						Cluster_type: clusterType,
 						Namespace:    "test",
 						Size:         1,
@@ -160,12 +160,12 @@ var _ = Describe("Kruize Controller", func() {
 
 		DescribeTable("should handle case-insensitive cluster types",
 			func(clusterType, namespace, testName string) {
-				kruize := &mydomainv1alpha1.Kruize{
+				kruize := &kruizev1alpha1.Kruize{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      testName,
 						Namespace: "default",
 					},
-					Spec: mydomainv1alpha1.KruizeSpec{
+					Spec: kruizev1alpha1.KruizeSpec{
 						Cluster_type: clusterType,
 						Namespace:    namespace,
 						Size:         1,
@@ -199,12 +199,12 @@ var _ = Describe("Kruize Controller", func() {
 		DescribeTable("should not create resources for unsupported cluster types",
 			func(clusterType, testName string) {
 				testNamespace := "test-" + clusterType + "-namespace"
-				kruize := &mydomainv1alpha1.Kruize{
+				kruize := &kruizev1alpha1.Kruize{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      testName,
 						Namespace: "default",
 					},
-					Spec: mydomainv1alpha1.KruizeSpec{
+					Spec: kruizev1alpha1.KruizeSpec{
 						Cluster_type: clusterType,
 						Namespace:    testNamespace,
 						Size:         1,
