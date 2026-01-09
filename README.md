@@ -17,11 +17,16 @@ For examples of running Kruize and the operator, see [kruize-demos](https://gith
 ## Getting Started
 
 ### Prerequisites
-- Go version v1.21.0+ (tested with v1.22.5)
-- Docker version 17.03+
+
+**For Deployment:**
 - kubectl version v1.23.0+
 - Access to a Kubernetes v1.23.0+ or OpenShift 4.x+ cluster
 - [Prometheus](https://github.com/prometheus/prometheus) (for Minikube, Kind clusters)
+
+**For Building/Development:**
+- Go version v1.21.0+ (tested with v1.22.5 and v1.24.0)
+- [operator-sdk](https://github.com/operator-framework/operator-sdk) v1.37.0+ (as specified in Makefile)
+- Docker version 17.03+
 
 ### Deployment
 
@@ -43,16 +48,16 @@ The operator uses Kustomize overlays to manage platform-specific configurations:
    ```
 
 3. Deploy the operator:
-   ```sh
-   # OpenShift (default)
-   make deploy-openshift IMG=<some-registry>/kruize-operator:tag
+
+   | Platform | Command | Namespace |
+   |----------|---------|-----------|
+   | OpenShift | `make deploy-openshift IMG=<registry>/kruize-operator:tag` | `openshift-tuning` |
+   | Minikube | `make deploy-minikube IMG=<registry>/kruize-operator:tag` | `monitoring` |
+   | KIND | `make deploy-kind IMG=<registry>/kruize-operator:tag` | `monitoring` |
+
+   > **Note**: `IMG` parameter is optional. If not specified, the default image from the Makefile will be used.
    
-   # Minikube
-   make deploy-minikube IMG=<some-registry>/kruize-operator:tag
-   
-   # KIND
-   make deploy-kind IMG=<some-registry>/kruize-operator:tag
-   ```
+   > **Alternative**: Use `make deploy OVERLAY=<openshift\|local> IMG=<registry>/kruize-operator:tag`
 
 4. Create instances of your solution:
    ```sh
@@ -95,37 +100,11 @@ The operator uses Kustomize overlays to manage platform-specific configurations:
 
 For more undeployment options, see [config/overlays/README.md](config/overlays/README.md).
 
-## Project Distribution
-
-Following are the steps to build the installer and distribute this project to users.
-
-1. Build the installer for the image built and published in the registry:
-
-```sh
-make build-installer IMG=<some-registry>/kruize-operator:tag
-```
-
-NOTE: The makefile target mentioned above generates an 'install.yaml'
-file in the dist directory. This file contains all the resources built
-with Kustomize, which are necessary to install this project without
-its dependencies.
-
-2. Using the installer
-
-Users can just run kubectl apply -f <URL for YAML BUNDLE> to install the project, i.e.:
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/kruize-operator/<tag or branch>/dist/install.yaml
-```
-
 ## BUILDING
 
-### Requirements
-- Go v1.21.0+ (tested with v1.22.5)
-- [operator-sdk](https://github.com/operator-framework/operator-sdk) v1.37.0+
-- Docker version 17.03+
+See [Prerequisites](#prerequisites) section above for required tools and versions.
 
-### Instructions
+**Instructions**
 
 `make generate manifests` will trigger code/YAML generation and compile the operator controller manager.
 
