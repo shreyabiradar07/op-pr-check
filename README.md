@@ -108,7 +108,7 @@ See [Prerequisites](#prerequisites) section above for required tools and version
 
 `make generate manifests` will trigger code/YAML generation and compile the operator controller manager.
 
-`make docker-build` will build an OCI image tagged as `quay.io/kruize/kruize-operator:v0.0.2`. Override with `IMG` variable.
+`make docker-build` IMG=<registry>/kruize-operator:tag will build an OCI image. If `IMG` is not specified, the default image from the Makefile will be used.
 
 `make bundle` will create an OLM bundle in the `bundle/` directory. `make bundle-build` will create an OCI image of this bundle.
 
