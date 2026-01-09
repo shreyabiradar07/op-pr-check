@@ -108,7 +108,7 @@ See [Prerequisites](#prerequisites) section above for required tools and version
 
 `make generate manifests` will trigger code/YAML generation and compile the operator controller manager.
 
-`make docker-build` IMG=<registry>/kruize-operator:tag will build an OCI image. If `IMG` is not specified, the default image from the Makefile will be used.
+`make docker-build IMG=<registry>/kruize-operator:tag` will build an OCI image. If `IMG` is not specified, the default image from the Makefile will be used.
 
 `make bundle` will create an OLM bundle in the `bundle/` directory. `make bundle-build` will create an OCI image of this bundle.
 
@@ -137,7 +137,10 @@ The `test-e2e` target supports optional flags for customizing the test environme
 # Default (OpenShift cluster)
 make test-e2e
 ```
-This requires a Kubernetes or OpenShift cluster. Recommended: Minikube, KIND, or CodeReady Containers.
+This requires a Kubernetes or OpenShift cluster. Recommended: Minikube, KIND, or OpenShift.
+
+**For detailed testing documentation**, see:
+- [Operator Tests Documentation](test/Operator_tests.md)
 
 ## License
 
