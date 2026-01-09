@@ -108,6 +108,9 @@ func main() {
 		WebhookServer:          webhookServer,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
+		// NOTE: Do not change LeaderElectionID in future releases without a migration plan.
+		// Changing it causes a new leader election lease and can lead to multiple active leaders
+		// during rolling updates.
 		LeaderElectionID:       "7ef00355.kruize.io",
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
