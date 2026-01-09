@@ -4,20 +4,20 @@ A Kubernetes Operator to automate deployment of [Kruize Autotune](https://github
 
 ## Description
 
-The Kruize operator simplifies deployment and management of Kruize on Kubernetes and OpenShift clusters. It provides a declarative way to configure and deploy Kruize components including the core autotune service and UI through Custom Resource Definitions (CRDs).
+The Kruize operator simplifies deployment and management of Kruize on Kubernetes and OpenShift clusters. It provides a declarative way to configure and deploy Kruize components including the core Kruize service and UI through Custom Resource Definitions (CRDs).
 
-For examples of running Kruize and the operator, see [kruize-demos](https://github.com/kruize/kruize-demos). You can customize the YAML file (found in config/samples) to deploy with your preferred options.
+For examples of running Kruize and the operator, see [kruize-demos](https://github.com/kruize/kruize-demos/tree/main/monitoring/local_monitoring). You can customize the YAML file (found in config/samples) to deploy with your preferred options.
 
 ## SEE ALSO
 
-* [autotune](https://github.com/kruize/autotune) - Main Kruize service providing resource optimization recommendations
+* [Kruize Autotune](https://github.com/kruize/autotune) - Main Kruize service providing resource optimization recommendations
 * [kruize-ui](https://github.com/kruize/kruize-ui) - Web interface for Kruize
 * [kruize-demos](https://github.com/kruize/kruize-demos) - Example deployments and demonstrations
 
 ## Getting Started
 
 ### Prerequisites
-- Go version v1.24.0+
+- Go version v1.21.0+ (tested with v1.22.5)
 - Docker version 17.03+
 - kubectl version v1.23.0+
 - Access to a Kubernetes v1.23.0+ or OpenShift 4.x+ cluster
@@ -29,89 +29,71 @@ The operator uses Kustomize overlays to manage platform-specific configurations:
 - **OpenShift** (default): Deploys to `openshift-tuning` namespace
 - **Local (Minikube/KIND)**: Deploys to `monitoring` namespace
 
-For detailed overlay information, see [config/overlays/README.md](config/overlays/README.md).
+**Quick Start:**
 
-**Build and push your image:**
-
-```sh
-make docker-build docker-push IMG=<some-registry>/kruize-operator:tag
-```
-
+1. Build and push your image:
+   ```sh
+   make docker-build docker-push IMG=<some-registry>/kruize-operator:tag
+   ```
 **NOTE:** Ensure the image is published to a registry accessible from your cluster.
 
-**Install the CRDs:**
+2. Install the CRDs:
+   ```sh
+   make install
+   ```
 
-```sh
-make install
-```
+3. Deploy the operator:
+   ```sh
+   # OpenShift (default)
+   make deploy-openshift IMG=<some-registry>/kruize-operator:tag
+   
+   # Minikube
+   make deploy-minikube IMG=<some-registry>/kruize-operator:tag
+   
+   # KIND
+   make deploy-kind IMG=<some-registry>/kruize-operator:tag
+   ```
 
-**Deploy the operator:**
+4. Create instances of your solution:
+   ```sh
+   # For OpenShift
+   kubectl apply -f config/samples/v1alpha1_kruize.yaml -n openshift-tuning
+   
+   # For Minikube/KIND
+   kubectl apply -f config/samples/v1alpha1_kruize.yaml -n monitoring
+   ```
+   >**NOTE**: Before applying for Minikube/KIND, update [`config/samples/v1alpha1_kruize.yaml`](config/samples/v1alpha1_kruize.yaml):
+   >- Set `cluster_type: "minikube"` or `cluster_type: "kind"`
+   >- Set `namespace: "monitoring"` (instead of `"openshift-tuning"`)
 
-_For OpenShift (default):
-```sh
-make deploy IMG=<some-registry>/kruize-operator:tag
-# or explicitly
-make deploy-openshift IMG=<some-registry>/kruize-operator:tag
-```_
+**For detailed deployment options, overlay configurations, and advanced usage**, see [config/overlays/README.md](config/overlays/README.md).
 
-For Minikube:
-```sh
-make deploy-minikube IMG=<some-registry>/kruize-operator:tag
-# or using OVERLAY variable
-make deploy OVERLAY=local IMG=<some-registry>/kruize-operator:tag
-```
-
-For KIND:
-```sh
-make deploy-kind IMG=<some-registry>/kruize-operator:tag
-# or using OVERLAY variable
-make deploy OVERLAY=local IMG=<some-registry>/kruize-operator:tag
-```
-
-> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
-privileges or be logged in as admin.
-
-**Create instances of your solution**
-You can apply the samples (examples) from the config/sample:
-
-```sh
-kubectl apply -k config/samples/
-```
-
->**NOTE**: The default sample is configured for OpenShift. For Minikube/KIND clusters, update the `config/samples/v1alpha1_kruize.yaml` file before applying:
->- Set `cluster_type: "minikube"` or `cluster_type: "kind"`
->- Set `namespace: "monitoring"` (instead of `"openshift-tuning"`)
+**NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin privileges or be logged in as admin.
 
 ### To Uninstall
 
-**Delete the instances (CRs):**
+1. Delete the instances (CRs):
+   ```sh
+   # For OpenShift
+   kubectl delete -f config/samples/v1alpha1_kruize.yaml -n openshift-tuning
+   
+   # For Minikube/KIND
+   kubectl delete -f config/samples/v1alpha1_kruize.yaml -n monitoring
+   ```
 
-```sh
-kubectl delete -k config/samples/
-```
+2. Undeploy the controller:
+   ```sh
+   make undeploy-openshift  # For OpenShift
+   make undeploy-minikube   # For Minikube
+   make undeploy-kind       # For KIND
+   ```
 
-**Undeploy the controller:**
+3. Delete the CRDs:
+   ```sh
+   make uninstall
+   ```
 
-For OpenShift:
-```sh
-make undeploy-openshift
-```
-
-For Minikube/KIND:
-```sh
-make undeploy-minikube  # or make undeploy-kind
-```
-
-Or using OVERLAY variable:
-```sh
-make undeploy OVERLAY=local  # for Minikube/KIND
-```
-
-**Delete the CRDs:**
-
-```sh
-make uninstall
-```
+For more undeployment options, see [config/overlays/README.md](config/overlays/README.md).
 
 ## Project Distribution
 
@@ -139,7 +121,7 @@ kubectl apply -f https://raw.githubusercontent.com/<org>/kruize-operator/<tag or
 ## BUILDING
 
 ### Requirements
-- Go v1.24.0+
+- Go v1.21.0+ (tested with v1.22.5)
 - [operator-sdk](https://github.com/operator-framework/operator-sdk) v1.37.0+
 - Docker version 17.03+
 
