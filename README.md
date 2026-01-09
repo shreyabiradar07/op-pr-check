@@ -59,7 +59,7 @@ The operator uses Kustomize overlays to manage platform-specific configurations:
    
    > **Alternative**: Use `make deploy OVERLAY=<openshift\|local> IMG=<registry>/kruize-operator:tag`
 
-4. Create instances of your solution:
+4. Create a Kruize instance:
    ```sh
    # For OpenShift
    kubectl apply -f config/samples/v1alpha1_kruize.yaml -n openshift-tuning
@@ -77,7 +77,7 @@ The operator uses Kustomize overlays to manage platform-specific configurations:
 
 ### To Uninstall
 
-1. Delete the instances (CRs):
+1. Delete the Kruize instance(CR):
    ```sh
    # For OpenShift
    kubectl delete -f config/samples/v1alpha1_kruize.yaml -n openshift-tuning
