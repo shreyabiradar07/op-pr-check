@@ -29,11 +29,12 @@ metadata:
     capabilities: Basic Install
     categories: Monitoring, Developer Tools
     containerImage: quay.io/kruize/kruize-operator:0.0.3
-    createdAt: "2026-01-12T08:05:22Z"
+    createdAt: "2026-01-12T10:09:26Z"
     description: Resource optimization tool for Kubernetes workloads
     operators.operatorframework.io/builder: operator-sdk-v1.33.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/kruize/kruize-operator
+    support: Kruize Community
   name: kruize-operator.v0.0.3
   namespace: placeholder
 spec:
@@ -443,7 +444,7 @@ spec:
           - apps
           resources:
           - replicasets
-          - deamonsets
+          - daemonsets
           verbs:
           - get
           - list
