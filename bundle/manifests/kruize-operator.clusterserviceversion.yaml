@@ -7,7 +7,7 @@ metadata:
     createdAt: "2025-06-24T06:44:54Z"
     operators.operatorframework.io/builder: operator-sdk-v1.37.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
-  name: kruize-operator.v0.0.2
+  name: kruize-operator.v0.0.3
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -38,4 +38,4 @@ spec:
   maturity: alpha
   provider:
     name: ncaughey
-  version: 0.0.2
+  version: 0.0.3
