@@ -33,8 +33,11 @@ metadata:
     description: Resource optimization tool for Kubernetes workloads
     operators.operatorframework.io/builder: operator-sdk-v1.37.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
+<<<<<<< HEAD
     repository: https://github.com/kruize/kruize-operator
     support: Kruize Community
+=======
+>>>>>>> 4f0a41fd173ac9283c8a6da75b1dae5cc6fdd28b
   name: kruize-operator.v0.0.3
   namespace: placeholder
 spec:
