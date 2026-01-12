@@ -1,9 +1,9 @@
 # VERSION defines the project version for the bundle.
 # Update this value when you upgrade the version of your project.
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
-# - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
-# - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= 0.0.2
+# - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.3)
+# - use environment variables to overwrite this value (e.g export VERSION=0.0.3)
+VERSION ?= 0.0.3
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "candidate,fast,stable")
@@ -28,7 +28,7 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 # This variable is used to construct full image tags for bundle and catalog images.
 #
 # For example, running 'make bundle-build bundle-push catalog-build catalog-push' will build and push both
-# my.domain/kruize-operator-bundle:$VERSION and my.domain/kruize-operator-catalog:$VERSION.
+# kruize.io/kruize-operator-bundle:$VERSION and kruize.io/kruize-operator-catalog:$VERSION.
 IMAGE_TAG_BASE ?= quay.io/kruize/kruize-operator
 
 # BUNDLE_IMG defines the image:tag used for the bundle.
@@ -115,9 +115,14 @@ test: manifests generate fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
 
 # Utilize Kind or modify the e2e tests to load the image locally, enabling compatibility with other vendors.
+# Usage examples:
+#   make test-e2e (default is openshift cluster)
+#   make test-e2e CLUSTER_TYPE=kind
+#   make test-e2e CLUSTER_TYPE=kind NAMESPACE=monitoring KRUIZE_IMAGE=quay.io/kruize/autotune_operator:latest KRUIZE_UI_IMAGE=quay.io/kruize/kruize-ui:latest
+#   make test-e2e CLUSTER_TYPE=kind KRUIZE_IMAGE=quay.io/kruize/autotune:latest OPERATOR_IMAGE=quay.io/kruize/kruize-operator:0.0.2
 .PHONY: test-e2e  # Run the e2e tests against a Kind k8s instance that is spun up.
 test-e2e:
-	go test ./test/e2e/ -v -ginkgo.v
+	@go test ./test/e2e/ -v -ginkgo.v $(if $(CLUSTER_TYPE),--cluster-type=$(CLUSTER_TYPE))$(if $(KRUIZE_IMAGE), --kruize-image=$(KRUIZE_IMAGE))$(if $(OPERATOR_IMAGE), --operator-image=$(OPERATOR_IMAGE))$(if $(KRUIZE_UI_IMAGE), --kruize-ui-image=$(KRUIZE_UI_IMAGE))$(if $(NAMESPACE), --namespace=$(NAMESPACE))
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter & yamllint
@@ -177,6 +182,14 @@ ifndef ignore-not-found
   ignore-not-found = false
 endif
 
+# OVERLAY defines which kustomize overlay to use for deployment
+# Default overlays: openshift (openshift-tuning namespace), local (monitoring namespace for Minikube/Kind)
+# To deploy to a custom namespace, create a new overlay in config/overlays/<overlay-name>/
+# Example: make deploy OVERLAY=local
+# Example: make deploy OVERLAY=operator-demo (if you created config/overlays/operator-demo/)
+OVERLAY ?= openshift
+
+
 .PHONY: install
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
@@ -186,13 +199,37 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: deploy
-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+deploy: manifests kustomize ## Deploy controller using kustomize overlays. Use OVERLAY=openshift or OVERLAY=local (default: openshift).
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
+	$(KUSTOMIZE) build config/overlays/${OVERLAY} | $(KUBECTL) apply -f -
+
+.PHONY: deploy-openshift
+deploy-openshift: ## Deploy operator to OpenShift cluster in openshift-tuning namespace.
+	$(MAKE) deploy OVERLAY=openshift
+
+.PHONY: deploy-minikube
+deploy-minikube: ## Deploy operator to Minikube cluster in monitoring namespace.
+	$(MAKE) deploy OVERLAY=local
+
+.PHONY: deploy-kind
+deploy-kind: ## Deploy operator to Kind cluster in monitoring namespace.
+	$(MAKE) deploy OVERLAY=local
 
 .PHONY: undeploy
-undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion. Use OVERLAY=openshift or OVERLAY=local (default: openshift).
+	$(KUSTOMIZE) build config/overlays/${OVERLAY} | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+
+.PHONY: undeploy-openshift
+undeploy-openshift: ## Undeploy controller from OpenShift cluster in openshift-tuning namespace.
+	$(MAKE) undeploy OVERLAY=openshift
+
+.PHONY: undeploy-minikube
+undeploy-minikube: ## Undeploy controller from Minikube cluster in monitoring namespace.
+	$(MAKE) undeploy OVERLAY=local
+
+.PHONY: undeploy-kind
+undeploy-kind: ## Undeploy controller from Kind cluster in monitoring namespace.
+	$(MAKE) undeploy OVERLAY=local
 
 ##@ Dependencies
 

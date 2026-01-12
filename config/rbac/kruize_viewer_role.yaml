@@ -8,7 +8,7 @@ metadata:
   name: kruize-viewer-role
 rules:
 - apiGroups:
-  - my.domain
+  - kruize.io
   resources:
   - kruizes
   verbs:
@@ -16,7 +16,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - my.domain
+  - kruize.io
   resources:
   - kruizes/status
   verbs:

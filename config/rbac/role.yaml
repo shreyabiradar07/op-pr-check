@@ -104,6 +104,8 @@ rules:
   verbs:
   - create
   - get
+  - list
+  - watch
 - apiGroups:
   - apps
   resources:
@@ -134,7 +136,29 @@ rules:
 - apiGroups:
   - autoscaling.k8s.io
   resources:
+  - verticalpodautoscalercheckpoints
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - autoscaling.k8s.io
+  resources:
   - verticalpodautoscalers
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - autoscaling.k8s.io
+  resources:
+  - verticalpodautoscalers/status
   verbs:
   - create
   - get
@@ -149,6 +173,8 @@ rules:
   verbs:
   - create
   - get
+  - list
+  - watch
 - apiGroups:
   - batch
   resources:
@@ -156,6 +182,7 @@ rules:
   verbs:
   - create
   - get
+  - list
 - apiGroups:
   - extensions
   resources:
@@ -165,6 +192,37 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - inference.redhat.com
+  resources:
+  - instaslices
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - kruize.io
+  resources:
+  - kruizes
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+- apiGroups:
+  - kruize.io
+  resources:
+  - kruizes/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - kruize.io
+  resources:
+  - kruizes/status
+  verbs:
+  - get
+  - patch
+  - update
 - apiGroups:
   - metrics.k8s.io
   resources:
@@ -189,6 +247,8 @@ rules:
   - create
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - monitoring.coreos.com
@@ -198,6 +258,8 @@ rules:
   - create
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - monitoring.coreos.com
@@ -206,7 +268,10 @@ rules:
   verbs:
   - create
   - get
+  - list
+  - patch
   - update
+  - watch
 - apiGroups:
   - monitoring.coreos.com
   resources:
@@ -214,6 +279,10 @@ rules:
   verbs:
   - create
   - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - monitoring.coreos.com
   resources:
@@ -222,34 +291,22 @@ rules:
   - create
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
-  - my.domain
+  - networking.k8s.io
   resources:
-  - kruizes
+  - ingresses
   verbs:
   - create
   - get
   - list
   - watch
 - apiGroups:
-  - my.domain
-  resources:
-  - kruizes/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - my.domain
-  resources:
-  - kruizes/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
   - networking.k8s.io
   resources:
-  - ingresses
+  - networkpolicies
   verbs:
   - create
   - get
@@ -313,3 +370,5 @@ rules:
   verbs:
   - create
   - get
+  - list
+  - watch

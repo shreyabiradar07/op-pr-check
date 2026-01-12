@@ -16,6 +16,7 @@ COPY cmd/main.go cmd/main.go
 COPY api/ api/
 COPY internal/controller/ internal/controller/
 COPY internal/utils/ internal/utils/
+COPY internal/constants/ internal/constants/
 
 # Build
 # the GOARCH has not a default value to allow the binary be built according to the host where the command
@@ -31,9 +32,6 @@ WORKDIR /app
 
 # Copy the manager binary
 COPY --from=builder /workspace/manager .
-
-# Copy the manifest files
-COPY autotune/ autotune/
 
 USER 65532:65532
 
