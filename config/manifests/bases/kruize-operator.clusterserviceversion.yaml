@@ -72,8 +72,10 @@ spec:
   - name: Kruize Autotune
     url: https://github.com/kruize/autotune
   maintainers:
-  - email: https://github.com/kruize/autotune/blob/master/MAINTAINERS.md
-    name: Kruize Maintainers
+  - email: dgunigun@ibm.com
+    name: Dinakar Guniguntala
+  - email: csubrama@ibm.com
+    name: Chandrakala Subramanyam
   maturity: alpha
   minKubeVersion: 1.23.0
   provider:
