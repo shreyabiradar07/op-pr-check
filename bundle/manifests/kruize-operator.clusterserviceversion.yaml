@@ -29,7 +29,7 @@ metadata:
     capabilities: Basic Install
     categories: Monitoring, Developer Tools
     containerImage: quay.io/kruize/kruize-operator:0.0.3
-    createdAt: "2026-01-12T11:49:02Z"
+    createdAt: "2026-01-13T11:23:45Z"
     description: Resource optimization tool for Kubernetes workloads
     operators.operatorframework.io/builder: operator-sdk-v1.37.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
@@ -45,6 +45,71 @@ spec:
       displayName: Kruize
       kind: Kruize
       name: kruizes.kruize.io
+      resources:
+      - kind: Deployment
+        name: ''
+        version: v1
+      - kind: Service
+        name: ''
+        version: v1
+      - kind: ServiceAccount
+        name: ''
+        version: v1
+      - kind: ConfigMap
+        name: ''
+        version: v1
+      - kind: PersistentVolume
+        name: ''
+        version: v1
+      - kind: PersistentVolumeClaim
+        name: ''
+        version: v1
+      - kind: StorageClass
+        name: ''
+        version: v1
+      specDescriptors:
+      - description: Namespace where Kruize components will be deployed
+        displayName: Namespace
+        path: namespace
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: Non-interactive mode flag (1 for enabled, 0 for disabled)
+        displayName: Non Interactive
+        path: non_interactive
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:number
+      - description: Size of the Kruize deployment
+        displayName: Size
+        path: size
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:number
+      - description: Use YAML build flag (1 for enabled, 0 for disabled)
+        displayName: Use YAML Build
+        path: use_yaml_build
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:number
+      - description: ConfigMaps for Autotune configuration
+        displayName: Autotune ConfigMaps
+        path: autotune_configmaps
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: Container image for Autotune operator
+        displayName: Autotune Image
+        path: autotune_image
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: Container image for Kruize UI
+        displayName: Autotune UI Image
+        path: autotune_ui_image
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: Type of Kubernetes cluster (openshift, minikube, or kind)
+        displayName: Cluster Type
+        path: cluster_type
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:select:openshift
+        - urn:alm:descriptor:com.tectonic.ui:select:minikube
+        - urn:alm:descriptor:com.tectonic.ui:select:kind
       version: v1alpha1
   description: |
     Kruize is resource optimization tool for Kubernetes that helps you achieve significant cost
