@@ -28,6 +28,7 @@ metadata:
       ]
     capabilities: Basic Install
     categories: Monitoring, Developer Tools
+    com.redhat.openshift.versions: "v4.10-v4.20"
     containerImage: quay.io/kruize/kruize-operator:0.0.3
     createdAt: "2026-01-13T11:23:45Z"
     description: Resource optimization tool for Kubernetes workloads
