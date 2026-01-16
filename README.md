@@ -20,7 +20,7 @@ For examples of running Kruize and the operator, see [kruize-demos](https://gith
 
 **For Deployment:**
 - kubectl version v1.23.0+
-- Access to a Kubernetes v1.23.0+ or OpenShift 4.x+ cluster
+- Access to a Kubernetes v1.23.0+ or OpenShift v4.10-v4.20 cluster
 - [Prometheus](https://github.com/prometheus/prometheus) (for Minikube, Kind clusters)
 
 **For Building/Development:**
