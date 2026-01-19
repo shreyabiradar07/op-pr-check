@@ -9,7 +9,7 @@ on:
 
 env:
   GO_VERSION: '1.24'
-  OPERATOR_IMAGE: quay.io/shbirada/pr_check:pr-${{ github.event.pull_request.number }}
+  OPERATOR_IMAGE: quay.io/kruize/kruize-operator:pr-${{ github.event.pull_request.number }}
   NAMESPACE: monitoring
 
 jobs:
