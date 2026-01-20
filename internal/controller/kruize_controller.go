@@ -240,7 +240,6 @@ func (r *KruizeReconciler) deployKruize(ctx context.Context, kruize *kruizev1alp
 	fmt.Printf("=== DEBUG: Kruize Spec Fields ===\n")
 	fmt.Printf("Cluster_type: '%s'\n", kruize.Spec.Cluster_type)
 	fmt.Printf("Namespace: '%s'\n", kruize.Spec.Namespace)
-	fmt.Printf("Size: %d\n", kruize.Spec.Size)
 	fmt.Printf("Autotune_image: '%s'\n", kruize.Spec.Autotune_image)
 	fmt.Printf("=== END DEBUG ===\n")
 

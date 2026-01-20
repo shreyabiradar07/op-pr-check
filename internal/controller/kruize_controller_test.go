@@ -87,7 +87,6 @@ var _ = Describe("Kruize Controller", func() {
 					Spec: kruizev1alpha1.KruizeSpec{
 						Cluster_type: clusterType,
 						Namespace:    namespace,
-						Size:         1,
 					},
 				}
 				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
@@ -168,7 +167,6 @@ var _ = Describe("Kruize Controller", func() {
 					Spec: kruizev1alpha1.KruizeSpec{
 						Cluster_type: clusterType,
 						Namespace:    namespace,
-						Size:         1,
 					},
 				}
 				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
