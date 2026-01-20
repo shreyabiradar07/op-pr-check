@@ -57,7 +57,7 @@ type KruizeStatus struct {
 // the operator to deploy the Kruize application.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +operator-sdk:csv:customresourcedefinitions:resources={{Deployment,v1},{Service,v1},{ServiceAccount,v1},{ConfigMap,v1},{PersistentVolume,v1},{PersistentVolumeClaim,v1},{StorageClass,v1},{ClusterRole,v1},{ClusterRoleBinding,v1},{Role,v1},{RoleBinding,v1},{CronJob,v1},{ServiceMonitor,v1},{NetworkPolicy,v1}}
+// +operator-sdk:csv:customresourcedefinitions:resources={{Deployment,v1},{Service,v1},{ServiceAccount,v1},{ConfigMap,v1},{PersistentVolume,v1},{PersistentVolumeClaim,v1},{StorageClass,v1}}
 type Kruize struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
