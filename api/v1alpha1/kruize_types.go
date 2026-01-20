@@ -28,13 +28,20 @@ type KruizeSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Cluster type (e.g., "openshift", "minikube", "kind")
+	// Type of Kubernetes cluster (openshift, minikube, or kind)
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Cluster Type",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:select:openshift","urn:alm:descriptor:com.tectonic.ui:select:minikube","urn:alm:descriptor:com.tectonic.ui:select:kind"}
 	Cluster_type      string `json:"cluster_type"`
+
 	// Container image for Kruize Autotune
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Autotune Image",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	Autotune_image    string `json:"autotune_image"`
+
 	// Container image for Kruize UI
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Autotune UI Image",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	Autotune_ui_image string `json:"autotune_ui_image"`
+
 	// Target namespace for Kruize deployment
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Namespace",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	Namespace         string `json:"namespace"`
 }
 
@@ -50,6 +57,7 @@ type KruizeStatus struct {
 // the operator to deploy the Kruize application.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +operator-sdk:csv:customresourcedefinitions:resources={{Deployment,v1},{Service,v1},{ServiceAccount,v1},{ConfigMap,v1},{PersistentVolume,v1},{PersistentVolumeClaim,v1},{StorageClass,v1},{ClusterRole,v1},{ClusterRoleBinding,v1},{Role,v1},{RoleBinding,v1},{CronJob,v1},{ServiceMonitor,v1},{NetworkPolicy,v1}}
 type Kruize struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
