@@ -43,13 +43,16 @@ spec:
             description: KruizeSpec defines the desired state of Kruize
             properties:
               autotune_image:
+                description: Container image for Kruize Autotune
                 type: string
               autotune_ui_image:
+                description: Container image for Kruize UI
                 type: string
               cluster_type:
-                description: Cluster configuration fields
+                description: Cluster type (e.g., "openshift", "minikube", "kind")
                 type: string
               namespace:
+                description: Target namespace for Kruize deployment
                 type: string
             required:
             - autotune_image

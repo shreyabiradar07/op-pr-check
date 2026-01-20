@@ -28,10 +28,13 @@ type KruizeSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Cluster configuration fields
+	// Cluster type (e.g., "openshift", "minikube", "kind")
 	Cluster_type      string `json:"cluster_type"`
+	// Container image for Kruize Autotune
 	Autotune_image    string `json:"autotune_image"`
+	// Container image for Kruize UI
 	Autotune_ui_image string `json:"autotune_ui_image"`
+	// Target namespace for Kruize deployment
 	Namespace         string `json:"namespace"`
 }
 
