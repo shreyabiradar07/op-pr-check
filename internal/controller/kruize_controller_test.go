@@ -87,6 +87,8 @@ var _ = Describe("Kruize Controller", func() {
 					Spec: kruizev1alpha1.KruizeSpec{
 						Cluster_type: clusterType,
 						Namespace:    namespace,
+						Autotune_image:    "quay.io/kruize/autotune_operator:latest",
+						Autotune_ui_image: "quay.io/kruize/kruize-ui:latest",
 					},
 				}
 				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
@@ -123,6 +125,8 @@ var _ = Describe("Kruize Controller", func() {
 					Spec: kruizev1alpha1.KruizeSpec{
 						Cluster_type: clusterType,
 						Namespace:    "test",
+						Autotune_image:    "quay.io/kruize/autotune_operator:latest",
+						Autotune_ui_image: "quay.io/kruize/kruize-ui:latest",
 					},
 				}
 				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
@@ -166,6 +170,8 @@ var _ = Describe("Kruize Controller", func() {
 					Spec: kruizev1alpha1.KruizeSpec{
 						Cluster_type: clusterType,
 						Namespace:    namespace,
+						Autotune_image:    "quay.io/kruize/autotune_operator:latest",
+						Autotune_ui_image: "quay.io/kruize/kruize-ui:latest",
 					},
 				}
 				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
@@ -204,6 +210,8 @@ var _ = Describe("Kruize Controller", func() {
 					Spec: kruizev1alpha1.KruizeSpec{
 						Cluster_type: clusterType,
 						Namespace:    testNamespace,
+						Autotune_image:    "quay.io/kruize/autotune_operator:latest",
+						Autotune_ui_image: "quay.io/kruize/kruize-ui:latest",
 					},
 				}
 				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
