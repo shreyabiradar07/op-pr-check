@@ -85,10 +85,10 @@ var _ = Describe("Kruize Controller", func() {
 						Namespace: "default",
 					},
 					Spec: kruizev1alpha1.KruizeSpec{
-						Cluster_type: clusterType,
-						Namespace:    namespace,
-						Autotune_image:    "quay.io/kruize/autotune_operator:latest",
-						Autotune_ui_image: "quay.io/kruize/kruize-ui:latest",
+						Cluster_type:      clusterType,
+						Namespace:         namespace,
+						Autotune_image:    constants.DefaultAutotuneImage,
+						Autotune_ui_image: constants.DefaultAutotuneUIImage,
 					},
 				}
 				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
@@ -123,10 +123,10 @@ var _ = Describe("Kruize Controller", func() {
 						Namespace: "default",
 					},
 					Spec: kruizev1alpha1.KruizeSpec{
-						Cluster_type: clusterType,
-						Namespace:    "test",
-						Autotune_image:    "quay.io/kruize/autotune_operator:latest",
-						Autotune_ui_image: "quay.io/kruize/kruize-ui:latest",
+						Cluster_type:      clusterType,
+						Namespace:         "test",
+						Autotune_image:    constants.DefaultAutotuneImage,
+						Autotune_ui_image: constants.DefaultAutotuneUIImage,
 					},
 				}
 				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
@@ -168,10 +168,10 @@ var _ = Describe("Kruize Controller", func() {
 						Namespace: "default",
 					},
 					Spec: kruizev1alpha1.KruizeSpec{
-						Cluster_type: clusterType,
-						Namespace:    namespace,
-						Autotune_image:    "quay.io/kruize/autotune_operator:latest",
-						Autotune_ui_image: "quay.io/kruize/kruize-ui:latest",
+						Cluster_type:      clusterType,
+						Namespace:         namespace,
+						Autotune_image:    constants.DefaultAutotuneImage,
+						Autotune_ui_image: constants.DefaultAutotuneUIImage,
 					},
 				}
 				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
@@ -208,10 +208,10 @@ var _ = Describe("Kruize Controller", func() {
 						Namespace: "default",
 					},
 					Spec: kruizev1alpha1.KruizeSpec{
-						Cluster_type: clusterType,
-						Namespace:    testNamespace,
-						Autotune_image:    "quay.io/kruize/autotune_operator:latest",
-						Autotune_ui_image: "quay.io/kruize/kruize-ui:latest",
+						Cluster_type:      clusterType,
+						Namespace:         testNamespace,
+						Autotune_image:    constants.DefaultAutotuneImage,
+						Autotune_ui_image: constants.DefaultAutotuneUIImage,
 					},
 				}
 				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
@@ -307,8 +307,8 @@ var _ = Describe("Kruize Controller", func() {
 		It("should use default images when not specified", func() {
 			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeOpenShift)
 
-			Expect(generator.Autotune_image).To(Equal("quay.io/kruize/autotune_operator:latest"))
-			Expect(generator.Autotune_ui_image).To(Equal("quay.io/kruize/kruize-ui:0.0.9"))
+			Expect(generator.Autotune_image).To(Equal(constants.DefaultAutotuneImage))
+			Expect(generator.Autotune_ui_image).To(Equal(constants.DefaultAutotuneUIImage))
 		})
 
 		It("should use custom images when specified", func() {
