@@ -49,7 +49,7 @@ spec:
                 description: Container image for Kruize UI
                 type: string
               cluster_type:
-                description: Cluster type (e.g., "openshift", "minikube", "kind")
+                description: Type of Kubernetes cluster (openshift, minikube, or kind)
                 type: string
               namespace:
                 description: Target namespace for Kruize deployment
