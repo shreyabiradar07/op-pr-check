@@ -112,16 +112,13 @@ jobs:
             echo "Info: Installing prometheus manifests"
             kubectl apply -f . --server-side
           
-            # Wait for prometheus-k8s-1 pod to be spawned
-            echo -n "Info: Waiting for Prometheus Pods to get spawned..."
-            for i in {1..60}; do
-              if kubectl get pods -n ${PROMETHEUS_NS} 2>/dev/null | grep -q "prometheus-k8s-1"; then
-                echo "done"
-                break
-              fi
-              echo -n "."
-              sleep 5
-            done
+            # Wait for Prometheus pods to be Ready to avoid race conditions with pending/starting containers
+            echo "Info: Waiting for Prometheus pods to be Ready..."
+            kubectl wait \
+              --for=condition=ready pod \
+              -l app.kubernetes.io/name=prometheus \
+              -n "${PROMETHEUS_NS}" \
+              --timeout=180s
           
             echo "Info: Verifying Prometheus installation..."
             kubectl get statefulset prometheus-k8s -n ${PROMETHEUS_NS}
