@@ -29,16 +29,6 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
       - name: Install dependencies
         run: |
           go mod download
@@ -112,16 +102,14 @@ jobs:
             echo "Info: Installing prometheus manifests"
             kubectl apply -f . --server-side
           
-            # Wait for prometheus-k8s-1 pod to be spawned
-            echo -n "Info: Waiting for Prometheus Pods to get spawned..."
-            for i in {1..60}; do
-              if kubectl get pods -n ${PROMETHEUS_NS} 2>/dev/null | grep -q "prometheus-k8s-1"; then
-                echo "done"
-                break
-              fi
-              echo -n "."
-              sleep 5
-            done
+            # Wait for Prometheus pods to be ready
+            echo "Info: Waiting for Prometheus pods to be ready..."
+            sleep 30
+            kubectl wait \
+              --for=condition=ready pod \
+              -l app.kubernetes.io/name=prometheus \
+              -n "${PROMETHEUS_NS}" \
+              --timeout=300s
           
             echo "Info: Verifying Prometheus installation..."
             kubectl get statefulset prometheus-k8s -n ${PROMETHEUS_NS}
