@@ -118,7 +118,7 @@ jobs:
               --for=condition=ready pod \
               -l app.kubernetes.io/name=prometheus \
               -n "${PROMETHEUS_NS}" \
-              --timeout=120s
+              --timeout=300s
           
             echo "Info: Verifying Prometheus installation..."
             kubectl get statefulset prometheus-k8s -n ${PROMETHEUS_NS}
