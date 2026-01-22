@@ -87,8 +87,8 @@ var _ = Describe("Kruize Controller", func() {
 					Spec: kruizev1alpha1.KruizeSpec{
 						Cluster_type:      clusterType,
 						Namespace:         namespace,
-						Autotune_image:    constants.DefaultAutotuneImage,
-						Autotune_ui_image: constants.DefaultAutotuneUIImage,
+						Autotune_image:    "quay.io/kruize/autotune_operator:0.8.1",
+						Autotune_ui_image: "quay.io/kruize/kruize-ui:0.0.9",
 					},
 				}
 				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
@@ -125,8 +125,8 @@ var _ = Describe("Kruize Controller", func() {
 					Spec: kruizev1alpha1.KruizeSpec{
 						Cluster_type:      clusterType,
 						Namespace:         "test",
-						Autotune_image:    constants.DefaultAutotuneImage,
-						Autotune_ui_image: constants.DefaultAutotuneUIImage,
+						Autotune_image:    "quay.io/kruize/autotune_operator:0.8.1",
+						Autotune_ui_image: "quay.io/kruize/kruize-ui:0.0.9",
 					},
 				}
 				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
@@ -170,8 +170,8 @@ var _ = Describe("Kruize Controller", func() {
 					Spec: kruizev1alpha1.KruizeSpec{
 						Cluster_type:      clusterType,
 						Namespace:         namespace,
-						Autotune_image:    constants.DefaultAutotuneImage,
-						Autotune_ui_image: constants.DefaultAutotuneUIImage,
+						Autotune_image:    "quay.io/kruize/autotune_operator:0.8.1",
+						Autotune_ui_image: "quay.io/kruize/kruize-ui:0.0.9",
 					},
 				}
 				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
@@ -210,8 +210,8 @@ var _ = Describe("Kruize Controller", func() {
 					Spec: kruizev1alpha1.KruizeSpec{
 						Cluster_type:      clusterType,
 						Namespace:         testNamespace,
-						Autotune_image:    constants.DefaultAutotuneImage,
-						Autotune_ui_image: constants.DefaultAutotuneUIImage,
+						Autotune_image:    "quay.io/kruize/autotune_operator:0.8.1",
+						Autotune_ui_image: "quay.io/kruize/kruize-ui:0.0.9",
 					},
 				}
 				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
@@ -307,8 +307,8 @@ var _ = Describe("Kruize Controller", func() {
 		It("should use default images when not specified", func() {
 			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeOpenShift)
 
-			Expect(generator.Autotune_image).To(Equal(constants.DefaultAutotuneImage))
-			Expect(generator.Autotune_ui_image).To(Equal(constants.DefaultAutotuneUIImage))
+			Expect(generator.Autotune_image).To(Equal("quay.io/kruize/autotune_operator:0.8.1"))
+			Expect(generator.Autotune_ui_image).To(Equal("quay.io/kruize/kruize-ui:0.0.9"))
 		})
 
 		It("should use custom images when specified", func() {
