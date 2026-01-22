@@ -102,6 +102,10 @@ jobs:
             echo "Info: Installing prometheus manifests"
             kubectl apply -f . --server-side
           
+            # Allow time for Prometheus pods to be created
+            echo "Info: Waiting for Prometheus pods to be created..."
+            sleep 30
+          
             # Wait for Prometheus pods to be ready
             echo "Info: Waiting for Prometheus pods to be ready..."
             kubectl wait \
