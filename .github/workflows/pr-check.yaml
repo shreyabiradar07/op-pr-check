@@ -135,13 +135,18 @@ jobs:
             sudo chmod +x /usr/local/bin/yq
           fi
           
+          echo "yq version:"
+          yq --version
+          
           # Reduce manager container resources in config/manager/manager.yaml
-          yq eval -i '.spec.template.spec.containers[] | select(.name == "manager") | .resources.requests.cpu = "1m"' config/manager/manager.yaml
-          yq eval -i '.spec.template.spec.containers[] | select(.name == "manager") | .resources.requests.memory = "32Mi"' config/manager/manager.yaml
+          echo "Updating manager container resources..."
+          yq eval -i '(.spec.template.spec.containers[] | select(.name == "manager") | .resources.requests.cpu) = "1m"' config/manager/manager.yaml
+          yq eval -i '(.spec.template.spec.containers[] | select(.name == "manager") | .resources.requests.memory) = "32Mi"' config/manager/manager.yaml
           
           # Reduce kube-rbac-proxy resources in config/default/manager_auth_proxy_patch.yaml
-          yq eval -i '.spec.template.spec.containers[] | select(.name == "kube-rbac-proxy") | .resources.requests.cpu = "1m"' config/default/manager_auth_proxy_patch.yaml
-          yq eval -i '.spec.template.spec.containers[] | select(.name == "kube-rbac-proxy") | .resources.requests.memory = "32Mi"' config/default/manager_auth_proxy_patch.yaml
+          echo "Updating kube-rbac-proxy container resources..."
+          yq eval -i '(.spec.template.spec.containers[] | select(.name == "kube-rbac-proxy") | .resources.requests.cpu) = "1m"' config/default/manager_auth_proxy_patch.yaml
+          yq eval -i '(.spec.template.spec.containers[] | select(.name == "kube-rbac-proxy") | .resources.requests.memory) = "32Mi"' config/default/manager_auth_proxy_patch.yaml
           
           echo "Updated resource requests:"
           echo "Manager container:"
