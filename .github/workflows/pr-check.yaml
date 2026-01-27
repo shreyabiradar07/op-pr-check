@@ -128,17 +128,21 @@ jobs:
         run: |
           echo "Reducing CPU/memory requests for resource-constrained Kind cluster..."
           
-          # Reduce manager container resources
-          sed -i 's/cpu: 10m/cpu: 1m/' config/manager/manager.yaml
-          sed -i 's/memory: 64Mi/memory: 32Mi/' config/manager/manager.yaml
           
-          # Reduce kube-rbac-proxy resources
-          sed -i 's/cpu: 5m/cpu: 1m/' config/default/manager_auth_proxy_patch.yaml
-          sed -i 's/memory: 64Mi/memory: 32Mi/' config/default/manager_auth_proxy_patch.yaml
+          # Reduce manager container resources in config/manager/manager.yaml
+          yq eval -i '.spec.template.spec.containers[] | select(.name == "manager") | .resources.requests.cpu = "1m"' config/manager/manager.yaml
+          yq eval -i '.spec.template.spec.containers[] | select(.name == "manager") | .resources.requests.memory = "32Mi"' config/manager/manager.yaml
+          
+          # Reduce kube-rbac-proxy resources in config/default/manager_auth_proxy_patch.yaml
+          yq eval -i '.spec.template.spec.containers[] | select(.name == "kube-rbac-proxy") | .resources.requests.cpu = "1m"' config/default/manager_auth_proxy_patch.yaml
+          yq eval -i '.spec.template.spec.containers[] | select(.name == "kube-rbac-proxy") | .resources.requests.memory = "32Mi"' config/default/manager_auth_proxy_patch.yaml
           
           echo "Updated resource requests:"
-          grep -A 3 "requests:" config/manager/manager.yaml
-          grep -A 3 "requests:" config/default/manager_auth_proxy_patch.yaml
+          echo "Manager container:"
+          yq eval '.spec.template.spec.containers[] | select(.name == "manager") | .resources.requests' config/manager/manager.yaml
+          echo "Kube-rbac-proxy container:"
+          yq eval '.spec.template.spec.containers[] | select(.name == "kube-rbac-proxy") | .resources.requests' config/default/manager_auth_proxy_patch.yaml
+
 
       - name: Run E2E tests
         run: |
