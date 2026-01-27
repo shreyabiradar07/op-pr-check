@@ -38,10 +38,10 @@ type KruizeResourceGenerator struct {
 func NewKruizeResourceGenerator(namespace string, autotuneImage string, autotuneUIImage string, clusterType string) *KruizeResourceGenerator {
 	// If no image is provided from the CR, use a sensible default.
 	if autotuneImage == "" {
-		autotuneImage = "quay.io/kruize/autotune_operator:latest"
+		autotuneImage = constants.DefaultAutotuneImage
 	}
 	if autotuneUIImage == "" {
-		autotuneUIImage = "quay.io/kruize/kruize-ui:0.0.9"
+		autotuneUIImage = constants.DefaultAutotuneUIImage
 	}
 	if clusterType == "" {
 		clusterType = constants.ClusterTypeOpenShift // Default to openshift for backward compatibility

@@ -32,6 +32,15 @@ const (
 	ClusterTypeKind      = "kind"
 )
 
+// Default container image versions
+const (
+	// DefaultAutotuneImage is the default container image for Kruize Autotune
+	DefaultAutotuneImage = "quay.io/kruize/autotune_operator:0.8.1"
+
+	// DefaultAutotuneUIImage is the default container image for Kruize UI
+	DefaultAutotuneUIImage = "quay.io/kruize/kruize-ui:0.0.9"
+)
+
 // NormalizeClusterType converts user input to lowercase for internal use
 // This allows case-insensitive cluster type matching (e.g., "OpenShift", "OPENSHIFT", "openshift" all work)
 func NormalizeClusterType(clusterType string) string {
