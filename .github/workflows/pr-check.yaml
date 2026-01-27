@@ -151,12 +151,31 @@ jobs:
           set -o pipefail
           make test-e2e CLUSTER_TYPE=kind OPERATOR_IMAGE=${{ env.OPERATOR_IMAGE }} NAMESPACE=${{ env.NAMESPACE }} 2>&1 | tee /tmp/e2e-test-output.log
 
+      - name: Collect pod logs
+        if: always()
+        run: |
+          echo "Collecting operator and Kruize pod logs..."
+          mkdir -p /tmp/pod-logs
+
+          # Get operator pod logs
+          echo "Fetching operator pod logs..."
+          kubectl logs -n ${{ env.NAMESPACE }} -l control-plane=controller-manager --all-containers=true --tail=-1 > /tmp/pod-logs/operator-logs.txt 2>&1 || echo "Failed to fetch operator logs" > /tmp/pod-logs/operator-logs.txt
+
+          # Get Kruize pod logs
+          echo "Fetching Kruize pod logs..."
+          kubectl logs -n ${{ env.NAMESPACE }} -l app=kruize --all-containers=true --tail=-1 > /tmp/pod-logs/kruize-logs.txt 2>&1 || echo "Failed to fetch Kruize logs" > /tmp/pod-logs/kruize-logs.txt
+
+          echo "Pod logs collection completed"
+          ls -lh /tmp/pod-logs/
+
       - name: Upload E2E test logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-test-logs-pr-${{ github.event.pull_request.number }}
-          path: /tmp/e2e-test-output.log
+          name: operator-e2e-test-logs-pr-${{ github.event.pull_request.number }}
+          path: |
+            /tmp/e2e-test-output.log
+            /tmp/pod-logs/
           retention-days: 1
 
       - name: Summary
