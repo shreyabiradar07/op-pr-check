@@ -128,6 +128,12 @@ jobs:
         run: |
           echo "Reducing CPU/memory requests for resource-constrained Kind cluster..."
           
+          # Install yq if not available
+          if ! command -v yq &> /dev/null; then
+            echo "Installing yq..."
+            sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+            sudo chmod +x /usr/local/bin/yq
+          fi
           
           # Reduce manager container resources in config/manager/manager.yaml
           yq eval -i '.spec.template.spec.containers[] | select(.name == "manager") | .resources.requests.cpu = "1m"' config/manager/manager.yaml
