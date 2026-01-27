@@ -3,6 +3,7 @@ FROM registry.access.redhat.com/ubi10/go-toolset:1.25 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
+WORKDIR /workspace
 # Copy the Go Modules manifests
 COPY go.mod go.mod
 COPY go.sum go.sum
@@ -25,8 +26,9 @@ COPY internal/constants/ internal/constants/
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o manager cmd/main.go
 
 FROM registry.access.redhat.com/ubi10/ubi-minimal:10.1-1766033715
-WORKDIR /
-COPY --from=builder /opt/app-root/src/manager .
+WORKDIR /app
+
+COPY --from=builder /workspace/manager .
 USER 65532:65532
 
-ENTRYPOINT ["/manager"]
+ENTRYPOINT ["/app/manager"]
