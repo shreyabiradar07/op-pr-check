@@ -236,21 +236,20 @@ func (r *KruizeReconciler) checkKruizePodsStatus(ctx context.Context, namespace 
 }
 
 func (r *KruizeReconciler) deployKruize(ctx context.Context, kruize *kruizev1alpha1.Kruize) error {
-	// Add debug output
-	fmt.Printf("=== DEBUG: Kruize Spec Fields ===\n")
-	fmt.Printf("Cluster_type: '%s'\n", kruize.Spec.Cluster_type)
-	fmt.Printf("Namespace: '%s'\n", kruize.Spec.Namespace)
-	fmt.Printf("Size: %d\n", kruize.Spec.Size)
-	fmt.Printf("Autotune_image: '%s'\n", kruize.Spec.Autotune_image)
-	fmt.Printf("=== END DEBUG ===\n")
+	logger := log.FromContext(ctx)
+	
+	// Log Kruize spec configuration
+	logger.Info("Deploying Kruize",
+		"cluster_type", kruize.Spec.Cluster_type,
+		"namespace", kruize.Spec.Namespace,
+		"autotune_image", kruize.Spec.Autotune_image,
+		"autotune_ui_image", kruize.Spec.Autotune_ui_image)
 
 	// Normalize and validate cluster type (case-insensitive)
 	cluster_type := kruize.Spec.Cluster_type
 	if !constants.IsValidClusterType(cluster_type) {
 		return fmt.Errorf("unsupported cluster type: %s. Supported types are: %s", cluster_type, strings.Join(constants.SupportedClusterTypes, ", "))
 	}
-	
-	fmt.Println("Deploying Kruize for cluster type:", cluster_type)
 
 	var autotune_ns = kruize.Spec.Namespace
 
@@ -260,7 +259,7 @@ func (r *KruizeReconciler) deployKruize(ctx context.Context, kruize *kruizev1alp
 		return fmt.Errorf("Failed to deploy Kruize components: %v", err)
 	}
 
-	fmt.Printf("Successfully deployed Kruize components to namespace: %s\n", autotune_ns)
+	logger.Info("Successfully deployed Kruize components to namespace", "namespace", autotune_ns)
 	return nil
 }
 
