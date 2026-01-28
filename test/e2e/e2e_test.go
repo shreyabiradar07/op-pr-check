@@ -50,13 +50,55 @@ var _ = Describe("controller", Ordered, func() {
 	})
 
 	AfterAll(func() {
+		By("collecting pod logs before cleanup")
+		// Create logs directory
+		cmd := exec.Command("mkdir", "-p", "/tmp/pod-logs")
+		_, _ = utils.Run(cmd)
+
+		// Collect operator logs
+		fmt.Fprintf(GinkgoWriter, "Collecting operator pod logs...\n")
+		cmd = exec.Command("kubectl", "logs", "-n", namespace, "-l", "control-plane=controller-manager", "--all-containers=true", "--tail=-1")
+		if output, err := utils.Run(cmd); err == nil {
+			cmd = exec.Command("bash", "-c", fmt.Sprintf("echo '%s' > /tmp/pod-logs/operator-logs.txt", string(output)))
+			_, _ = utils.Run(cmd)
+		} else {
+			fmt.Fprintf(GinkgoWriter, "Warning: Failed to collect operator logs: %v\n", err)
+		}
+
+		// Collect Kruize logs
+		fmt.Fprintf(GinkgoWriter, "Collecting Kruize pod logs...\n")
+		cmd = exec.Command("kubectl", "logs", "-n", namespace, "-l", "app=kruize", "--all-containers=true", "--tail=-1")
+		if output, err := utils.Run(cmd); err == nil {
+			cmd = exec.Command("bash", "-c", fmt.Sprintf("echo '%s' > /tmp/pod-logs/kruize-logs.txt", string(output)))
+			_, _ = utils.Run(cmd)
+		} else {
+			fmt.Fprintf(GinkgoWriter, "Warning: Failed to collect Kruize logs: %v\n", err)
+		}
+
+		// Collect Kruize DB logs
+		fmt.Fprintf(GinkgoWriter, "Collecting Kruize DB pod logs...\n")
+		cmd = exec.Command("kubectl", "logs", "-n", namespace, "-l", "app=kruize-db-deployment", "--all-containers=true", "--tail=-1")
+		if output, err := utils.Run(cmd); err != nil {
+			// Try alternative label
+			cmd = exec.Command("kubectl", "logs", "-n", namespace, "-l", "app=kruize-db", "--all-containers=true", "--tail=-1")
+			output, err = utils.Run(cmd)
+		}
+		if err == nil {
+			cmd = exec.Command("bash", "-c", fmt.Sprintf("echo '%s' > /tmp/pod-logs/kruize-db-logs.txt", string(output)))
+			_, _ = utils.Run(cmd)
+		} else {
+			fmt.Fprintf(GinkgoWriter, "Warning: Failed to collect Kruize DB logs: %v\n", err)
+		}
+
+		fmt.Fprintf(GinkgoWriter, "Pod logs collection completed\n")
+
 		By("undeploying the controller-manager")
 		// Determine overlay based on cluster type
 		overlay := "local"
 		if clusterType == constants.ClusterTypeOpenShift {
 			overlay = "openshift"
 		}
-		cmd := exec.Command("make", "undeploy", fmt.Sprintf("OVERLAY=%s", overlay))
+		cmd = exec.Command("make", "undeploy", fmt.Sprintf("OVERLAY=%s", overlay))
 		_, _ = utils.Run(cmd)
 
 		By("uninstalling CRDs")

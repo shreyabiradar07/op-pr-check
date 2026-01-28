@@ -16,7 +16,7 @@ jobs:
   build-and-test:
     name: Build and Test Operator
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -114,7 +114,6 @@ jobs:
               -n "${PROMETHEUS_NS}" \
               --timeout=300s
           
-          
             echo "Info: Verifying Prometheus installation..."
             kubectl get statefulset prometheus-k8s -n ${PROMETHEUS_NS}
             kubectl get svc prometheus-k8s -n ${PROMETHEUS_NS}
@@ -152,8 +151,6 @@ jobs:
           yq '.spec.template.spec.containers[0].resources.requests' config/default/manager_auth_proxy_patch.yaml
 
       - name: Run E2E tests
-        id: e2e_tests
-        continue-on-error: true
         run: |
           set -o pipefail
           make test-e2e \
@@ -161,34 +158,6 @@ jobs:
             OPERATOR_IMAGE=${{ env.OPERATOR_IMAGE }} \
             NAMESPACE=${{ env.NAMESPACE }} \
             2>&1 | tee /tmp/e2e-test-output.log
-
-      - name: Collect pod logs before cleanup
-        if: always()
-        run: |
-          echo "Collecting operator and Kruize pod logs before test cleanup..."
-          mkdir -p /tmp/pod-logs
-
-          # Get operator pod logs
-          echo "Fetching operator pod logs..."
-          kubectl logs -n ${{ env.NAMESPACE }} -l control-plane=controller-manager --all-containers=true --tail=-1 > /tmp/pod-logs/operator-logs.txt 2>&1 || echo "Failed to fetch operator logs" > /tmp/pod-logs/operator-logs.txt
-
-          # Get Kruize pod logs
-          echo "Fetching Kruize pod logs..."
-          kubectl logs -n ${{ env.NAMESPACE }} -l app=kruize --all-containers=true --tail=-1 > /tmp/pod-logs/kruize-logs.txt 2>&1 || echo "Failed to fetch Kruize logs" > /tmp/pod-logs/kruize-logs.txt
-
-          # Get Kruize DB pod logs
-          echo "Fetching Kruize DB pod logs..."
-          kubectl logs -n ${{ env.NAMESPACE }} -l app=kruize-db --all-containers=true --tail=-1 > /tmp/pod-logs/kruize-db-logs.txt 2>&1 || \
-          echo "Failed to fetch Kruize DB logs" > /tmp/pod-logs/kruize-db-logs.txt
-          
-          echo "Pod logs collection completed"
-          ls -lh /tmp/pod-logs/
-
-      - name: Check E2E test result
-        if: steps.e2e_tests.outcome == 'failure'
-        run: |
-          echo "E2E tests failed"
-          exit 1
 
       - name: Upload E2E test logs
         if: always()
