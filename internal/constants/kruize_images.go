@@ -42,20 +42,40 @@ const (
 	defaultAutotuneUIImageRepo = "quay.io/kruize/kruize-ui"
 )
 
-// GetDefaultAutotuneImage returns the default Autotune image, checking environment variables first
-func GetDefaultAutotuneImage() string {
-	// Check for environment variable override
+// Package-level variables that cache the resolved default images.
+// These are initialized once at package load time to avoid repeated
+// environment variable lookups on every function call.
+var (
+	defaultAutotuneImage   string
+	defaultAutotuneUIImage string
+)
+
+// init resolves the default images by checking environment variables once at package initialization.
+// This caching approach improves performance and makes behavior more predictable.
+func init() {
+	// Resolve Autotune image
 	if envImage := os.Getenv(envAutotuneImage); envImage != "" {
-		return envImage
+		defaultAutotuneImage = envImage
+	} else {
+		defaultAutotuneImage = defaultAutotuneImageRepo + ":" + defaultAutotuneImageTag
 	}
-	return defaultAutotuneImageRepo + ":" + defaultAutotuneImageTag
+	
+	// Resolve Autotune UI image
+	if envImage := os.Getenv(envAutotuneUIImage); envImage != "" {
+		defaultAutotuneUIImage = envImage
+	} else {
+		defaultAutotuneUIImage = defaultAutotuneUIImageRepo + ":" + defaultAutotuneUIImageTag
+	}
 }
 
-// GetDefaultAutotuneUIImage returns the default Autotune UI image, checking environment variables first
+// GetDefaultAutotuneImage returns the cached default Autotune image.
+// The image is resolved once at package initialization from environment variables or defaults.
+func GetDefaultAutotuneImage() string {
+	return defaultAutotuneImage
+}
+
+// GetDefaultAutotuneUIImage returns the cached default Autotune UI image.
+// The image is resolved once at package initialization from environment variables or defaults.
 func GetDefaultAutotuneUIImage() string {
-	// Check for environment variable override
-	if envImage := os.Getenv(envAutotuneUIImage); envImage != "" {
-		return envImage
-	}
-	return defaultAutotuneUIImageRepo + ":" + defaultAutotuneUIImageTag
+	return defaultAutotuneUIImage
 }
