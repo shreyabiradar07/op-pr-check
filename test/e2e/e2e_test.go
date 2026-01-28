@@ -78,7 +78,8 @@ var _ = Describe("controller", Ordered, func() {
 		// Collect Kruize DB logs
 		fmt.Fprintf(GinkgoWriter, "Collecting Kruize DB pod logs...\n")
 		cmd = exec.Command("kubectl", "logs", "-n", namespace, "-l", "app=kruize-db-deployment", "--all-containers=true", "--tail=-1")
-		if output, err := utils.Run(cmd); err != nil {
+		output, err := utils.Run(cmd)
+		if err != nil {
 			// Try alternative label
 			cmd = exec.Command("kubectl", "logs", "-n", namespace, "-l", "app=kruize-db", "--all-containers=true", "--tail=-1")
 			output, err = utils.Run(cmd)
