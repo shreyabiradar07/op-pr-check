@@ -36,6 +36,21 @@ import (
 	"github.com/kruize/kruize-operator/internal/utils"
 )
 
+// findTypedResource is a helper function to find a specific resource by type, name, and label
+func findTypedResource[T client.Object](resources []client.Object, name string, labelKey string, labelValue string) T {
+	var zero T
+	for _, resource := range resources {
+		if typed, ok := resource.(T); ok {
+			if typed.GetName() == name {
+				if labels := typed.GetLabels(); labels != nil && labels[labelKey] == labelValue {
+					return typed
+				}
+			}
+		}
+	}
+	return zero
+}
+
 var _ = Describe("Kruize Controller", func() {
 	ctx := context.Background()
 
@@ -727,40 +742,16 @@ var _ = Describe("Kruize Controller", func() {
     		By("verifying the generated resources use default images")
     		namespacedResources := generator.KubernetesNamespacedResources()
 
-    		// Find and verify Kruize deployment using deterministic selection
-    		var kruizeDeployment *appsv1.Deployment
-    		for _, resource := range namespacedResources {
-    			if deployment, ok := resource.(*appsv1.Deployment); ok {
-    				// Match both name and label for deterministic selection
-    				if deployment.GetName() == "kruize" {
-    					if labels := deployment.GetLabels(); labels != nil && labels["app"] == "kruize" {
-    						kruizeDeployment = deployment
-    						break
-    					}
-    				}
-    			}
-    		}
-
+    		// Find and verify Kruize deployment using helper
+    		kruizeDeployment := findTypedResource[*appsv1.Deployment](namespacedResources, "kruize", "app", "kruize")
     		Expect(kruizeDeployment).NotTo(BeNil(), "Kruize deployment should be generated")
     		Expect(kruizeDeployment.Spec.Template.Spec.Containers).NotTo(BeEmpty())
     		Expect(kruizeDeployment.Spec.Template.Spec.Containers[0].Image).
     			To(Equal(constants.GetDefaultAutotuneImage()),
     				"Kruize deployment should use default Autotune image")
 
-    		// Find and verify UI pod
-    		var kruizeUIPod *corev1.Pod
-    		for _, resource := range namespacedResources {
-    			if pod, ok := resource.(*corev1.Pod); ok {
-    				// Match both name and label for deterministic selection
-    				if pod.GetName() == "kruize-ui-nginx-pod" {
-    					if labels := pod.GetLabels(); labels != nil && labels["app"] == "kruize-ui-nginx" {
-    						kruizeUIPod = pod
-    						break
-    					}
-    				}
-    			}
-    		}
-
+    		// Find and verify UI pod using helper
+    		kruizeUIPod := findTypedResource[*corev1.Pod](namespacedResources, "kruize-ui-nginx-pod", "app", "kruize-ui-nginx")
     		Expect(kruizeUIPod).NotTo(BeNil(), "Kruize UI pod should be generated")
     		Expect(kruizeUIPod.Spec.Containers).NotTo(BeEmpty())
     		Expect(kruizeUIPod.Spec.Containers[0].Image).To(Equal(constants.GetDefaultAutotuneUIImage()),
