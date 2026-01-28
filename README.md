@@ -34,10 +34,11 @@ For examples of running Kruize and the operator, see [kruize-demos](https://gith
 
 The operator supports the following environment variables for customizing default container images:
 
-| Variable | Description | Default Value |
-|----------|-------------|---------------|
-| `DEFAULT_AUTOTUNE_IMAGE` | Override the default Kruize Autotune container image | `quay.io/kruize/autotune_operator:0.8.1` |
-| `DEFAULT_AUTOTUNE_UI_IMAGE` | Override the default Kruize UI container image | `quay.io/kruize/kruize-ui:0.0.9` |
+| Variable | Description |
+|----------|-------------|
+| `DEFAULT_AUTOTUNE_IMAGE` | Override the default Kruize Autotune container image |
+| `DEFAULT_AUTOTUNE_UI_IMAGE` | Override the default Kruize UI container image |
+
 
 **Example Usage:**
 ```sh
@@ -46,7 +47,7 @@ export DEFAULT_AUTOTUNE_IMAGE="my-registry.io/kruize/autotune_operator:custom-ta
 export DEFAULT_AUTOTUNE_UI_IMAGE="my-registry.io/kruize/kruize-ui:custom-tag"
 ```
 
-These environment variables are checked when the operator creates Kruize resources with empty `autotune_image` or `autotune_ui_image` fields in the CR spec. If the CR explicitly specifies image values, those take precedence over both environment variables and built-in defaults.
+These environment variables are checked once at operator startup. When the operator creates Kruize resources with empty `autotune_image` or `autotune_ui_image` fields in the CR spec, it uses these environment variable values (if set) or the built-in defaults. If the CR explicitly specifies image values, those take precedence over environment variables.
 
 ### Deployment
 
