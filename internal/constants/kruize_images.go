@@ -20,17 +20,17 @@ import "os"
 
 // Default container image versions
 const (
-	// DefaultAutotuneImageTag is the default tag for Kruize Autotune image
-	DefaultAutotuneImageTag = "0.8.1"
+	// defaultAutotuneImageTag is the default tag for Kruize Autotune image
+	defaultAutotuneImageTag = "0.8.1"
 	
-	// DefaultAutotuneUIImageTag is the default tag for Kruize UI image
-	DefaultAutotuneUIImageTag = "0.0.9"
+	// defaultAutotuneUIImageTag is the default tag for Kruize UI image
+	defaultAutotuneUIImageTag = "0.0.9"
 	
-	// DefaultAutotuneImageRepo is the default repository for Kruize Autotune image
-	DefaultAutotuneImageRepo = "quay.io/kruize/autotune_operator"
+	// defaultAutotuneImageRepo is the default repository for Kruize Autotune image
+	defaultAutotuneImageRepo = "quay.io/kruize/autotune_operator"
 	
-	// DefaultAutotuneUIImageRepo is the default repository for Kruize UI image
-	DefaultAutotuneUIImageRepo = "quay.io/kruize/kruize-ui"
+	// defaultAutotuneUIImageRepo is the default repository for Kruize UI image
+	defaultAutotuneUIImageRepo = "quay.io/kruize/kruize-ui"
 )
 
 // GetDefaultAutotuneImage returns the default Autotune image, checking environment variables first
@@ -39,7 +39,7 @@ func GetDefaultAutotuneImage() string {
 	if envImage := os.Getenv("DEFAULT_AUTOTUNE_IMAGE"); envImage != "" {
 		return envImage
 	}
-	return DefaultAutotuneImageRepo + ":" + DefaultAutotuneImageTag
+	return defaultAutotuneImageRepo + ":" + defaultAutotuneImageTag
 }
 
 // GetDefaultAutotuneUIImage returns the default Autotune UI image, checking environment variables first
@@ -48,5 +48,5 @@ func GetDefaultAutotuneUIImage() string {
 	if envImage := os.Getenv("DEFAULT_AUTOTUNE_UI_IMAGE"); envImage != "" {
 		return envImage
 	}
-	return DefaultAutotuneUIImageRepo + ":" + DefaultAutotuneUIImageTag
+	return defaultAutotuneUIImageRepo + ":" + defaultAutotuneUIImageTag
 }
