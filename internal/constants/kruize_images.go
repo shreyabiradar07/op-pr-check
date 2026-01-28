@@ -18,6 +18,15 @@ package constants
 
 import "os"
 
+// Environment variable names for image overrides
+const (
+	// envAutotuneImage is the environment variable name for overriding the default Autotune image
+	envAutotuneImage = "DEFAULT_AUTOTUNE_IMAGE"
+	
+	// envAutotuneUIImage is the environment variable name for overriding the default Autotune UI image
+	envAutotuneUIImage = "DEFAULT_AUTOTUNE_UI_IMAGE"
+)
+
 // Default container image versions
 const (
 	// defaultAutotuneImageTag is the default tag for Kruize Autotune image
@@ -36,7 +45,7 @@ const (
 // GetDefaultAutotuneImage returns the default Autotune image, checking environment variables first
 func GetDefaultAutotuneImage() string {
 	// Check for environment variable override
-	if envImage := os.Getenv("DEFAULT_AUTOTUNE_IMAGE"); envImage != "" {
+	if envImage := os.Getenv(envAutotuneImage); envImage != "" {
 		return envImage
 	}
 	return defaultAutotuneImageRepo + ":" + defaultAutotuneImageTag
@@ -45,7 +54,7 @@ func GetDefaultAutotuneImage() string {
 // GetDefaultAutotuneUIImage returns the default Autotune UI image, checking environment variables first
 func GetDefaultAutotuneUIImage() string {
 	// Check for environment variable override
-	if envImage := os.Getenv("DEFAULT_AUTOTUNE_UI_IMAGE"); envImage != "" {
+	if envImage := os.Getenv(envAutotuneUIImage); envImage != "" {
 		return envImage
 	}
 	return defaultAutotuneUIImageRepo + ":" + defaultAutotuneUIImageTag
