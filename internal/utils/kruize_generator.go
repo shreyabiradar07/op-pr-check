@@ -37,11 +37,14 @@ type KruizeResourceGenerator struct {
 // NewKruizeResourceGenerator creates a new generator for Kruize resources.
 func NewKruizeResourceGenerator(namespace string, autotuneImage string, autotuneUIImage string, clusterType string) *KruizeResourceGenerator {
 	// If no image is provided from the CR, use a sensible default.
+	// The default can be configured via environment variables:
+	// - DEFAULT_AUTOTUNE_IMAGE: Override the default Autotune image
+	// - DEFAULT_AUTOTUNE_UI_IMAGE: Override the default Autotune UI image
 	if autotuneImage == "" {
-		autotuneImage = constants.DefaultAutotuneImage
+		autotuneImage = constants.GetDefaultAutotuneImage()
 	}
 	if autotuneUIImage == "" {
-		autotuneUIImage = constants.DefaultAutotuneUIImage
+		autotuneUIImage = constants.GetDefaultAutotuneUIImage()
 	}
 	if clusterType == "" {
 		clusterType = constants.ClusterTypeOpenShift // Default to openshift for backward compatibility

@@ -16,11 +16,37 @@ limitations under the License.
 
 package constants
 
+import "os"
+
 // Default container image versions
 const (
-	// DefaultAutotuneImage is the default container image for Kruize Autotune
-	DefaultAutotuneImage = "quay.io/kruize/autotune_operator:0.8.1"
-
-	// DefaultAutotuneUIImage is the default container image for Kruize UI
-	DefaultAutotuneUIImage = "quay.io/kruize/kruize-ui:0.0.9"
+	// DefaultAutotuneImageTag is the default tag for Kruize Autotune image
+	DefaultAutotuneImageTag = "0.8.1"
+	
+	// DefaultAutotuneUIImageTag is the default tag for Kruize UI image
+	DefaultAutotuneUIImageTag = "0.0.9"
+	
+	// DefaultAutotuneImageRepo is the default repository for Kruize Autotune image
+	DefaultAutotuneImageRepo = "quay.io/kruize/autotune_operator"
+	
+	// DefaultAutotuneUIImageRepo is the default repository for Kruize UI image
+	DefaultAutotuneUIImageRepo = "quay.io/kruize/kruize-ui"
 )
+
+// GetDefaultAutotuneImage returns the default Autotune image, checking environment variables first
+func GetDefaultAutotuneImage() string {
+	// Check for environment variable override
+	if envImage := os.Getenv("DEFAULT_AUTOTUNE_IMAGE"); envImage != "" {
+		return envImage
+	}
+	return DefaultAutotuneImageRepo + ":" + DefaultAutotuneImageTag
+}
+
+// GetDefaultAutotuneUIImage returns the default Autotune UI image, checking environment variables first
+func GetDefaultAutotuneUIImage() string {
+	// Check for environment variable override
+	if envImage := os.Getenv("DEFAULT_AUTOTUNE_UI_IMAGE"); envImage != "" {
+		return envImage
+	}
+	return DefaultAutotuneUIImageRepo + ":" + DefaultAutotuneUIImageTag
+}

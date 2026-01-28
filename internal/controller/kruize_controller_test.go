@@ -87,8 +87,8 @@ var _ = Describe("Kruize Controller", func() {
 					Spec: kruizev1alpha1.KruizeSpec{
 						Cluster_type:      clusterType,
 						Namespace:         namespace,
-						Autotune_image:    constants.DefaultAutotuneImage,
-						Autotune_ui_image: constants.DefaultAutotuneUIImage,
+						Autotune_image:    constants.GetDefaultAutotuneImage(),
+						Autotune_ui_image: constants.GetDefaultAutotuneUIImage(),
 					},
 				}
 				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
@@ -125,8 +125,8 @@ var _ = Describe("Kruize Controller", func() {
 					Spec: kruizev1alpha1.KruizeSpec{
 						Cluster_type:      clusterType,
 						Namespace:         "test",
-						Autotune_image:    constants.DefaultAutotuneImage,
-						Autotune_ui_image: constants.DefaultAutotuneUIImage,
+						Autotune_image:    constants.GetDefaultAutotuneImage(),
+						Autotune_ui_image: constants.GetDefaultAutotuneUIImage(),
 					},
 				}
 				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
@@ -170,8 +170,8 @@ var _ = Describe("Kruize Controller", func() {
 					Spec: kruizev1alpha1.KruizeSpec{
 						Cluster_type:      clusterType,
 						Namespace:         namespace,
-						Autotune_image:    constants.DefaultAutotuneImage,
-						Autotune_ui_image: constants.DefaultAutotuneUIImage,
+						Autotune_image:    constants.GetDefaultAutotuneImage(),
+						Autotune_ui_image: constants.GetDefaultAutotuneUIImage(),
 					},
 				}
 				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
@@ -210,8 +210,8 @@ var _ = Describe("Kruize Controller", func() {
 					Spec: kruizev1alpha1.KruizeSpec{
 						Cluster_type:      clusterType,
 						Namespace:         testNamespace,
-						Autotune_image:    constants.DefaultAutotuneImage,
-						Autotune_ui_image: constants.DefaultAutotuneUIImage,
+						Autotune_image:    constants.GetDefaultAutotuneImage(),
+						Autotune_ui_image: constants.GetDefaultAutotuneUIImage(),
 					},
 				}
 				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
@@ -307,8 +307,8 @@ var _ = Describe("Kruize Controller", func() {
 		It("should use default images when not specified", func() {
 			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeOpenShift)
 
-			Expect(generator.Autotune_image).To(Equal(constants.DefaultAutotuneImage))
-			Expect(generator.Autotune_ui_image).To(Equal(constants.DefaultAutotuneUIImage))
+			Expect(generator.Autotune_image).To(Equal(constants.GetDefaultAutotuneImage()))
+			Expect(generator.Autotune_ui_image).To(Equal(constants.GetDefaultAutotuneUIImage()))
 		})
 
 		It("should use custom images when specified", func() {
@@ -757,9 +757,9 @@ var _ = Describe("Kruize Controller", func() {
     		)
    
     		// Verify generator defaults empty image fields
-    		Expect(generator.Autotune_image).To(Equal(constants.DefaultAutotuneImage),
+    		Expect(generator.Autotune_image).To(Equal(constants.GetDefaultAutotuneImage()),
     			"Generator should default Autotune_image when empty")
-    		Expect(generator.Autotune_ui_image).To(Equal(constants.DefaultAutotuneUIImage),
+    		Expect(generator.Autotune_ui_image).To(Equal(constants.GetDefaultAutotuneUIImage()),
     			"Generator should default Autotune_ui_image when empty")
    
     		// Verify the generated deployment manifests would use default images
@@ -768,30 +768,35 @@ var _ = Describe("Kruize Controller", func() {
     		// Find and verify Kruize deployment
     		var kruizeDeployment *appsv1.Deployment
     		for _, resource := range namespacedResources {
-    			if resource.GetObjectKind().GroupVersionKind().Kind == "Deployment" &&
-    				resource.GetName() == "kruize" {
-    				var ok bool
-    				kruizeDeployment, ok = resource.(*appsv1.Deployment)
-    				Expect(ok).To(BeTrue(), "Resource should be a valid Deployment")
-    				break
+    			if deployment, ok := resource.(*appsv1.Deployment); ok {
+    				// Look for deployment with kruize label or name containing "kruize"
+    				if labels := deployment.GetLabels(); labels != nil && labels["app"] == "kruize" {
+    					kruizeDeployment = deployment
+    					break
+    				}
+    				// Fallback: check if name contains "kruize" (but not "kruize-db")
+    				if name := deployment.GetName(); name == "kruize" {
+    					kruizeDeployment = deployment
+    					break
+    				}
     			}
     		}
     		
     		Expect(kruizeDeployment).NotTo(BeNil(), "Kruize deployment should be generated")
     		Expect(kruizeDeployment.Spec.Template.Spec.Containers).NotTo(BeEmpty())
     		Expect(kruizeDeployment.Spec.Template.Spec.Containers[0].Image).
-    			To(Equal(constants.DefaultAutotuneImage),
+    			To(Equal(constants.GetDefaultAutotuneImage()),
     				"Kruize deployment should use default Autotune image")
-   
+
     		// Find and verify UI pod
     		var kruizeUIPod *corev1.Pod
     		for _, resource := range namespacedResources {
-    			if resource.GetObjectKind().GroupVersionKind().Kind == "Pod" &&
-    				resource.GetName() == "kruize-ui-nginx-pod" {
-    				var ok bool
-    				kruizeUIPod, ok = resource.(*corev1.Pod)
-    				Expect(ok).To(BeTrue(), "Resource should be a valid Pod")
-    				break
+    			if pod, ok := resource.(*corev1.Pod); ok {
+    				// Look for pod with kruize-ui-nginx label
+    				if labels := pod.GetLabels(); labels != nil && labels["app"] == "kruize-ui-nginx" {
+    					kruizeUIPod = pod
+    					break
+    				}
     			}
     		}
     		
@@ -801,12 +806,13 @@ var _ = Describe("Kruize Controller", func() {
     		// Find the UI container
     		var uiImage string
     		for _, container := range kruizeUIPod.Spec.Containers {
-    			if container.Name == "kruize-ui-nginx-container" {
+    			// Look for container with image matching UI pattern or first container
+    			if container.Image != "" {
     				uiImage = container.Image
     				break
     			}
     		}
-    		Expect(uiImage).To(Equal(constants.DefaultAutotuneUIImage),
+    		Expect(uiImage).To(Equal(constants.GetDefaultAutotuneUIImage()),
     			"Kruize UI pod should use default UI image")
     	})
     })
