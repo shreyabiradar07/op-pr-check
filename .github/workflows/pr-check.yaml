@@ -136,19 +136,17 @@ jobs:
           
           # Reduce manager container resources in config/manager/manager.yaml
           echo "Updating manager container resources..."
-          yq -i '.spec.template.spec.containers[0].resources.requests.cpu = "1m"' config/manager/manager.yaml
-          yq -i '.spec.template.spec.containers[0].resources.requests.memory = "32Mi"' config/manager/manager.yaml
-          
+          yq -i '(.spec.template.spec.containers[] | select(.name == "manager").resources.requests.cpu) = "1m"' config/manager/manager.yaml
+          yq -i '(.spec.template.spec.containers[] | select(.name == "manager").resources.requests.memory) = "32Mi"' config/manager/manager.yaml
           # Reduce kube-rbac-proxy resources in config/default/manager_auth_proxy_patch.yaml
           echo "Updating kube-rbac-proxy container resources..."
-          yq -i '.spec.template.spec.containers[0].resources.requests.cpu = "1m"' config/default/manager_auth_proxy_patch.yaml
-          yq -i '.spec.template.spec.containers[0].resources.requests.memory = "32Mi"' config/default/manager_auth_proxy_patch.yaml
-          
+          yq -i '(.spec.template.spec.containers[] | select(.name == "kube-rbac-proxy").resources.requests.cpu) = "1m"' config/default/manager_auth_proxy_patch.yaml
+          yq -i '(.spec.template.spec.containers[] | select(.name == "kube-rbac-proxy").resources.requests.memory) = "32Mi"' config/default/manager_auth_proxy_patch.yaml
           echo "Updated resource requests:"
           echo "Manager container:"
-          yq '.spec.template.spec.containers[0].resources.requests' config/manager/manager.yaml
+          yq '.spec.template.spec.containers[] | select(.name == "manager").resources.requests' config/manager/manager.yaml
           echo "Kube-rbac-proxy container:"
-          yq '.spec.template.spec.containers[0].resources.requests' config/default/manager_auth_proxy_patch.yaml
+          yq '.spec.template.spec.containers[] | select(.name == "kube-rbac-proxy").resources.requests' config/default/manager_auth_proxy_patch.yaml
 
       - name: Run E2E tests
         run: |
