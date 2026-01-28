@@ -50,56 +50,13 @@ var _ = Describe("controller", Ordered, func() {
 	})
 
 	AfterAll(func() {
-		By("collecting pod logs before cleanup")
-		// Create logs directory
-		cmd := exec.Command("mkdir", "-p", "/tmp/pod-logs")
-		_, _ = utils.Run(cmd)
-
-		// Collect operator logs
-		fmt.Fprintf(GinkgoWriter, "Collecting operator pod logs...\n")
-		cmd = exec.Command("kubectl", "logs", "-n", namespace, "-l", "control-plane=controller-manager", "--all-containers=true", "--tail=-1")
-		if output, err := utils.Run(cmd); err == nil {
-			cmd = exec.Command("bash", "-c", fmt.Sprintf("echo '%s' > /tmp/pod-logs/operator-logs.txt", string(output)))
-			_, _ = utils.Run(cmd)
-		} else {
-			fmt.Fprintf(GinkgoWriter, "Warning: Failed to collect operator logs: %v\n", err)
-		}
-
-		// Collect Kruize logs
-		fmt.Fprintf(GinkgoWriter, "Collecting Kruize pod logs...\n")
-		cmd = exec.Command("kubectl", "logs", "-n", namespace, "-l", "app=kruize", "--all-containers=true", "--tail=-1")
-		if output, err := utils.Run(cmd); err == nil {
-			cmd = exec.Command("bash", "-c", fmt.Sprintf("echo '%s' > /tmp/pod-logs/kruize-logs.txt", string(output)))
-			_, _ = utils.Run(cmd)
-		} else {
-			fmt.Fprintf(GinkgoWriter, "Warning: Failed to collect Kruize logs: %v\n", err)
-		}
-
-		// Collect Kruize DB logs
-		fmt.Fprintf(GinkgoWriter, "Collecting Kruize DB pod logs...\n")
-		cmd = exec.Command("kubectl", "logs", "-n", namespace, "-l", "app=kruize-db-deployment", "--all-containers=true", "--tail=-1")
-		output, err := utils.Run(cmd)
-		if err != nil {
-			// Try alternative label
-			cmd = exec.Command("kubectl", "logs", "-n", namespace, "-l", "app=kruize-db", "--all-containers=true", "--tail=-1")
-			output, err = utils.Run(cmd)
-		}
-		if err == nil {
-			cmd = exec.Command("bash", "-c", fmt.Sprintf("echo '%s' > /tmp/pod-logs/kruize-db-logs.txt", string(output)))
-			_, _ = utils.Run(cmd)
-		} else {
-			fmt.Fprintf(GinkgoWriter, "Warning: Failed to collect Kruize DB logs: %v\n", err)
-		}
-
-		fmt.Fprintf(GinkgoWriter, "Pod logs collection completed\n")
-
 		By("undeploying the controller-manager")
 		// Determine overlay based on cluster type
 		overlay := "local"
 		if clusterType == constants.ClusterTypeOpenShift {
 			overlay = "openshift"
 		}
-		cmd = exec.Command("make", "undeploy", fmt.Sprintf("OVERLAY=%s", overlay))
+		cmd := exec.Command("make", "undeploy", fmt.Sprintf("OVERLAY=%s", overlay))
 		_, _ = utils.Run(cmd)
 
 		By("uninstalling CRDs")
@@ -201,7 +158,7 @@ var _ = Describe("controller", Ordered, func() {
 			if clusterType == constants.ClusterTypeOpenShift {
 				expectedSA = "kruize-sa"
 			}
-			
+
 			By(fmt.Sprintf("checking that Kruize ServiceAccount '%s' is created", expectedSA))
 			Eventually(func() error {
 				cmd := exec.Command("kubectl", "get", "serviceaccount", expectedSA, "-n", namespace)
@@ -215,7 +172,7 @@ var _ = Describe("controller", Ordered, func() {
 				var cmd *exec.Cmd
 				var output []byte
 				var err error
-				
+
 				cmd = exec.Command("kubectl", "get", "deployment", "kruize-db-deployment", "-n", namespace, "-o", "jsonpath={.status.readyReplicas}")
 				output, err = utils.Run(cmd)
 				if err != nil {
@@ -226,7 +183,7 @@ var _ = Describe("controller", Ordered, func() {
 						return fmt.Errorf("neither kruize-db-deployment nor kruize-db found: %w", err)
 					}
 				}
-				
+
 				if string(output) != "1" {
 					return fmt.Errorf("database deployment not ready")
 				}
@@ -252,7 +209,7 @@ var _ = Describe("controller", Ordered, func() {
 			ExpectWithOffset(1, err).NotTo(HaveOccurred())
 			deployedImage := strings.TrimSpace(string(output))
 			fmt.Fprintf(GinkgoWriter, "Deployed Kruize image: %s\n", deployedImage)
-			
+
 			// If custom Kruize image was specified, verify it matches
 			if kruizeImage != "" {
 				if deployedImage == kruizeImage {
@@ -291,6 +248,23 @@ var _ = Describe("controller", Ordered, func() {
 
 			By("printing datasources API output")
 			fmt.Fprintf(GinkgoWriter, "\n=== Datasources API Output ===\n%s\n==============================\n", datasourceOutput)
+
+			By("collecting pod logs before deleting Kruize CR")
+			fmt.Fprintf(GinkgoWriter, "Collecting pod logs to /tmp/pod-logs/\n")
+
+			// Collect operator logs
+			cmd = exec.Command("bash", "-c", fmt.Sprintf("kubectl logs -n %s -l control-plane=controller-manager --all-containers=true --tail=-1 > /tmp/pod-logs/operator-logs.txt 2>&1 || echo 'Failed to collect operator logs' > /tmp/pod-logs/operator-logs.txt", namespace))
+			_, _ = utils.Run(cmd)
+
+			// Collect Kruize logs
+			cmd = exec.Command("bash", "-c", fmt.Sprintf("kubectl logs -n %s -l app=kruize --all-containers=true --tail=-1 > /tmp/pod-logs/kruize-logs.txt 2>&1 || echo 'Failed to collect Kruize logs' > /tmp/pod-logs/kruize-logs.txt", namespace))
+			_, _ = utils.Run(cmd)
+
+			// Collect Kruize DB logs
+			cmd = exec.Command("bash", "-c", fmt.Sprintf("kubectl logs -n %s -l app=kruize-db --all-containers=true --tail=-1 > /tmp/pod-logs/kruize-db-logs.txt 2>&1 || echo 'Failed to collect Kruize DB logs' > /tmp/pod-logs/kruize-db-logs.txt", namespace))
+			_, _ = utils.Run(cmd)
+
+			fmt.Fprintf(GinkgoWriter, "Pod logs collection completed\n")
 
 			By("cleaning up the Kruize custom resource")
 			cmd = exec.Command("kubectl", "delete", "-f", tmpCRPath, "-n", namespace)
