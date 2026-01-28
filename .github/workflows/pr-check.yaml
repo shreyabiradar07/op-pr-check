@@ -134,21 +134,33 @@ jobs:
             sudo chmod +x /usr/local/bin/yq
           fi
           
-          # Reduce manager container resources in config/manager/manager.yaml
-          echo "Updating manager container resources..."
-          yq -i '(.spec.template.spec.containers[] | select(.name == "manager").resources.requests.cpu) = "1m"' config/manager/manager.yaml
-          yq -i '(.spec.template.spec.containers[] | select(.name == "manager").resources.requests.memory) = "32Mi"' config/manager/manager.yaml
+          # Create temporary directory for modified configs
+          mkdir -p /tmp/ci-config/manager
+          mkdir -p /tmp/ci-config/default
           
-          # Reduce kube-rbac-proxy resources in config/default/manager_auth_proxy_patch.yaml
+          # Copy original files to temporary location
+          cp config/manager/manager.yaml /tmp/ci-config/manager/manager.yaml
+          cp config/default/manager_auth_proxy_patch.yaml /tmp/ci-config/default/manager_auth_proxy_patch.yaml
+          
+          # Reduce manager container resources in temporary copy
+          echo "Updating manager container resources..."
+          yq -i '(.spec.template.spec.containers[] | select(.name == "manager").resources.requests.cpu) = "1m"' /tmp/ci-config/manager/manager.yaml
+          yq -i '(.spec.template.spec.containers[] | select(.name == "manager").resources.requests.memory) = "32Mi"' /tmp/ci-config/manager/manager.yaml
+          
+          # Reduce kube-rbac-proxy resources in temporary copy
           echo "Updating kube-rbac-proxy container resources..."
-          yq -i '(.spec.template.spec.containers[] | select(.name == "kube-rbac-proxy").resources.requests.cpu) = "1m"' config/default/manager_auth_proxy_patch.yaml
-          yq -i '(.spec.template.spec.containers[] | select(.name == "kube-rbac-proxy").resources.requests.memory) = "32Mi"' config/default/manager_auth_proxy_patch.yaml
+          yq -i '(.spec.template.spec.containers[] | select(.name == "kube-rbac-proxy").resources.requests.cpu) = "1m"' /tmp/ci-config/default/manager_auth_proxy_patch.yaml
+          yq -i '(.spec.template.spec.containers[] | select(.name == "kube-rbac-proxy").resources.requests.memory) = "32Mi"' /tmp/ci-config/default/manager_auth_proxy_patch.yaml
+          
+          # Copy modified files back to config directory for deployment
+          cp /tmp/ci-config/manager/manager.yaml config/manager/manager.yaml
+          cp /tmp/ci-config/default/manager_auth_proxy_patch.yaml config/default/manager_auth_proxy_patch.yaml
           
           echo "Updated resource requests:"
           echo "Manager container:"
           yq '.spec.template.spec.containers[] | select(.name == "manager").resources.requests' config/manager/manager.yaml
           echo "Kube-rbac-proxy container:"
-          yq '.spec.template.spec.containers[] | select(.name == "kube-rbac-proxy").resources
+          yq '.spec.template.spec.containers[] | select(.name == "kube-rbac-proxy").resources.requests' config/default/manager_auth_proxy_patch.yaml
 
       - name: Run E2E tests
         run: |
