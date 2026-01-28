@@ -710,29 +710,24 @@ var _ = Describe("Kruize Controller", func() {
 	})
 
     Context("Image defaulting behavior", func() {
-    	It("defaults Autotune and UI images when omitted from Kruize CR", func() {
+    	It("should use default images when not specified", func() {
     		namespace := "test-default-images"
     		clusterType := constants.ClusterTypeMinikube
    
-    		By("creating a generator with empty image fields to test defaulting")
-    		// This validates that NewKruizeResourceGenerator properly defaults empty images
-    		generator := utils.NewKruizeResourceGenerator(
-    			namespace,
-    			"", // Empty Autotune_image to test defaulting
-    			"", // Empty Autotune_ui_image to test defaulting
-    			clusterType,
-    		)
-   
-    		// Verify generator defaults empty image fields
+    		By("creating a generator with empty image fields")
+    		generator := utils.NewKruizeResourceGenerator(namespace, "", "", clusterType)
+
+    		By("verifying the generator uses the default-image helpers")
+    		// This test verifies that the generator is wired to use the default-image helpers
     		Expect(generator.Autotune_image).To(Equal(constants.GetDefaultAutotuneImage()),
     			"Generator should default Autotune_image when empty")
     		Expect(generator.Autotune_ui_image).To(Equal(constants.GetDefaultAutotuneUIImage()),
     			"Generator should default Autotune_ui_image when empty")
-   
-    		// Verify the generated deployment manifests would use default images
+
+    		By("verifying the generated resources use default images")
     		namespacedResources := generator.KubernetesNamespacedResources()
-    		
-    		// Find and verify Kruize deployment
+
+    		// Find and verify Kruize deployment using deterministic selection
     		var kruizeDeployment *appsv1.Deployment
     		for _, resource := range namespacedResources {
     			if deployment, ok := resource.(*appsv1.Deployment); ok {
@@ -745,7 +740,7 @@ var _ = Describe("Kruize Controller", func() {
     				}
     			}
     		}
-    		
+
     		Expect(kruizeDeployment).NotTo(BeNil(), "Kruize deployment should be generated")
     		Expect(kruizeDeployment.Spec.Template.Spec.Containers).NotTo(BeEmpty())
     		Expect(kruizeDeployment.Spec.Template.Spec.Containers[0].Image).
@@ -765,13 +760,27 @@ var _ = Describe("Kruize Controller", func() {
     				}
     			}
     		}
-    		
+
     		Expect(kruizeUIPod).NotTo(BeNil(), "Kruize UI pod should be generated")
     		Expect(kruizeUIPod.Spec.Containers).NotTo(BeEmpty())
-    		
-    		// Verify the first container uses the default UI image
     		Expect(kruizeUIPod.Spec.Containers[0].Image).To(Equal(constants.GetDefaultAutotuneUIImage()),
     			"Kruize UI pod should use default UI image")
+    	})
+
+    	It("should use custom images when specified", func() {
+    		namespace := "test-custom-images"
+    		clusterType := constants.ClusterTypeMinikube
+    		customAutotuneImage := "custom.registry/autotune:custom-tag"
+    		customUIImage := "custom.registry/ui:custom-tag"
+
+    		By("creating a generator with custom image values")
+    		generator := utils.NewKruizeResourceGenerator(namespace, customAutotuneImage, customUIImage, clusterType)
+
+    		By("verifying the generator uses the provided custom images")
+    		Expect(generator.Autotune_image).To(Equal(customAutotuneImage),
+    			"Generator should use provided Autotune_image")
+    		Expect(generator.Autotune_ui_image).To(Equal(customUIImage),
+    			"Generator should use provided Autotune_ui_image")
     	})
     })
 
