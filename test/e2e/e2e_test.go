@@ -67,19 +67,19 @@ var _ = Describe("controller", Ordered, func() {
 		}
 		
 		// Collect operator logs
-		cmd = exec.Command("bash", "-c", fmt.Sprintf("kubectl logs -n %s -l control-plane=controller-manager --all-containers=true --tail=-1 > /tmp/pod-logs/operator-logs.txt 2>&1", namespace))
+		cmd = exec.Command("bash", "-c", fmt.Sprintf("kubectl logs -n %s -l control-plane=controller-manager --all-containers=true > /tmp/pod-logs/operator-logs.txt 2>&1", namespace))
 		if _, err := utils.Run(cmd); err != nil {
 			fmt.Fprintf(GinkgoWriter, "Warning: Failed to collect operator logs: %v\n", err)
 		}
 
 		// Collect Kruize logs
-		cmd = exec.Command("bash", "-c", fmt.Sprintf("kubectl logs -n %s -l app=kruize --all-containers=true --tail=-1 > /tmp/pod-logs/kruize-logs.txt 2>&1", namespace))
+		cmd = exec.Command("bash", "-c", fmt.Sprintf("kubectl logs -n %s -l app=kruize --all-containers=true > /tmp/pod-logs/kruize-logs.txt 2>&1", namespace))
 		if _, err := utils.Run(cmd); err != nil {
 			fmt.Fprintf(GinkgoWriter, "Warning: Failed to collect Kruize logs: %v\n", err)
 		}
 
 		// Collect Kruize DB logs
-		cmd = exec.Command("bash", "-c", fmt.Sprintf("kubectl logs -n %s -l app=kruize-db --all-containers=true --tail=-1 > /tmp/pod-logs/kruize-db-logs.txt 2>&1", namespace))
+		cmd = exec.Command("bash", "-c", fmt.Sprintf("kubectl logs -n %s -l app=kruize-db --all-containers=true > /tmp/pod-logs/kruize-db-logs.txt 2>&1", namespace))
 		if _, err := utils.Run(cmd); err != nil {
 			fmt.Fprintf(GinkgoWriter, "Warning: Failed to collect Kruize DB logs: %v\n", err)
 		}
