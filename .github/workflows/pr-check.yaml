@@ -8,7 +8,7 @@ on:
     types: [opened, synchronize, reopened]
 
 env:
-  GO_VERSION: '1.24.x'
+  GO_VERSION: '1.23.0'
   OPERATOR_IMAGE: quay.io/kruize/kruize-operator:pr-${{ github.event.pull_request.number }}
   NAMESPACE: monitoring
 
@@ -73,6 +73,8 @@ jobs:
           PROMETHEUS_TAG="v0.13.0"
           PROMETHEUS_NS="monitoring"
           
+          CADVISOR_TAG="v0.56.2"
+          
           echo "Info: Checking if Prometheus is already installed..."
           if kubectl get pods -n ${PROMETHEUS_NS} -l app.kubernetes.io/name=prometheus \
             --field-selector=status.phase=Running --no-headers 2>/dev/null | grep -q '.'; then
@@ -85,8 +87,8 @@ jobs:
             cd /tmp/kind_downloads
           
             # Install cadvisor
-            echo "Info: Downloading cadvisor git"
-            git clone https://github.com/google/cadvisor.git 2>/dev/null || echo "cadvisor already cloned"
+            echo "Info: Downloading cadvisor git release - ${CADVISOR_TAG}"
+            git clone --depth 1 -b ${CADVISOR_TAG} https://github.com/google/cadvisor.git 2>/dev/null || echo "cadvisor already cloned"
             cd cadvisor/deploy/kubernetes/base
             echo "Info: Installing cadvisor"
             kubectl kustomize . | kubectl apply -f-
@@ -94,7 +96,7 @@ jobs:
           
             # Install Prometheus
             echo "Info: Downloading prometheus git release - ${PROMETHEUS_TAG}"
-            git clone -b ${PROMETHEUS_TAG} https://github.com/coreos/kube-prometheus.git 2>/dev/null || echo "kube-prometheus already cloned"
+            git clone --depth 1 -b ${PROMETHEUS_TAG} https://github.com/coreos/kube-prometheus.git 2>/dev/null || echo "kube-prometheus already cloned"
             cd kube-prometheus/manifests
           
             echo "Info: Installing prometheus setup"
@@ -162,7 +164,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: operator-e2e-test-logs-pr-${{ github.event.pull_request.number }}
-          path: /tmp/e2e-test-output.log
+          path: |
+            /tmp/e2e-test-output.log
+            /tmp/pod-logs/
           retention-days: 1
 
       - name: Summary
