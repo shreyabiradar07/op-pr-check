@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.24 AS builder
+FROM registry.access.redhat.com/ubi10/go-toolset:1.25 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -25,14 +25,10 @@ COPY internal/constants/ internal/constants/
 # by leaving it empty we can ensure that the container and binary shipped on it will have the same platform.
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o manager cmd/main.go
 
-# Use distroless as minimal base image to package the manager binary
-# Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM gcr.io/distroless/static:nonroot
+FROM registry.access.redhat.com/ubi10/ubi-minimal:10.1-1766033715
 WORKDIR /app
 
-# Copy the manager binary
 COPY --from=builder /workspace/manager .
-
 USER 65532:65532
 
 ENTRYPOINT ["/app/manager"]
