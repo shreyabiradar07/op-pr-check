@@ -1,4 +1,4 @@
-name: Build and Test Operator
+name: Test on Pull Request
 
 on:
   pull_request:
@@ -8,8 +8,8 @@ on:
     types: [opened, synchronize, reopened]
 
 env:
-  GO_VERSION: '1.23'
-  OPERATOR_IMAGE: quay.io/kruize-operator/pr_check:pr-${{ github.event.pull_request.number }}
+  GO_VERSION: '1.23.0'
+  OPERATOR_IMAGE: quay.io/kruize/kruize-operator:pr-${{ github.event.pull_request.number }}
   NAMESPACE: monitoring
 
 jobs:
@@ -73,6 +73,8 @@ jobs:
           PROMETHEUS_TAG="v0.13.0"
           PROMETHEUS_NS="monitoring"
           
+          CADVISOR_TAG="v0.56.2"
+          
           echo "Info: Checking if Prometheus is already installed..."
           if kubectl get pods -n ${PROMETHEUS_NS} -l app.kubernetes.io/name=prometheus \
             --field-selector=status.phase=Running --no-headers 2>/dev/null | grep -q '.'; then
@@ -85,8 +87,8 @@ jobs:
             cd /tmp/kind_downloads
           
             # Install cadvisor
-            echo "Info: Downloading cadvisor git"
-            git clone https://github.com/google/cadvisor.git 2>/dev/null || echo "cadvisor already cloned"
+            echo "Info: Downloading cadvisor git release - ${CADVISOR_TAG}"
+            git clone --depth 1 -b ${CADVISOR_TAG} https://github.com/google/cadvisor.git 2>/dev/null || echo "cadvisor already cloned"
             cd cadvisor/deploy/kubernetes/base
             echo "Info: Installing cadvisor"
             kubectl kustomize . | kubectl apply -f-
@@ -94,7 +96,7 @@ jobs:
           
             # Install Prometheus
             echo "Info: Downloading prometheus git release - ${PROMETHEUS_TAG}"
-            git clone -b ${PROMETHEUS_TAG} https://github.com/coreos/kube-prometheus.git 2>/dev/null || echo "kube-prometheus already cloned"
+            git clone --depth 1 -b ${PROMETHEUS_TAG} https://github.com/coreos/kube-prometheus.git 2>/dev/null || echo "kube-prometheus already cloned"
             cd kube-prometheus/manifests
           
             echo "Info: Installing prometheus setup"
@@ -103,12 +105,9 @@ jobs:
             echo "Info: Installing prometheus manifests"
             kubectl apply -f . --server-side
           
-            # Allow time for Prometheus pods to be created
-            echo "Info: Waiting for Prometheus pods to be created..."
-            sleep 30
-          
             # Wait for Prometheus pods to be ready
             echo "Info: Waiting for Prometheus pods to be ready..."
+            sleep 30
             kubectl wait \
               --for=condition=ready pod \
               -l app.kubernetes.io/name=prometheus \
@@ -129,6 +128,12 @@ jobs:
         run: |
           echo "Reducing CPU/memory requests for resource-constrained Kind cluster..."
           
+          # Install yq if not available
+          if ! command -v yq &> /dev/null; then
+            echo "Installing yq..."
+            sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+            sudo chmod +x /usr/local/bin/yq
+          fi
           
           # Reduce manager container resources in config/manager/manager.yaml
           echo "Updating manager container resources..."
@@ -147,14 +152,20 @@ jobs:
           yq '.spec.template.spec.containers[0].resources.requests' config/default/manager_auth_proxy_patch.yaml
 
       - name: Run E2E tests
+        id: e2e_tests
+        continue-on-error: true
         run: |
           set -o pipefail
-          make test-e2e CLUSTER_TYPE=kind OPERATOR_IMAGE=${{ env.OPERATOR_IMAGE }} NAMESPACE=${{ env.NAMESPACE }} 2>&1 | tee /tmp/e2e-test-output.log
+          make test-e2e \
+            CLUSTER_TYPE=kind \
+            OPERATOR_IMAGE=${{ env.OPERATOR_IMAGE }} \
+            NAMESPACE=${{ env.NAMESPACE }} \
+            2>&1 | tee /tmp/e2e-test-output.log
 
-      - name: Collect pod logs
+      - name: Collect pod logs before cleanup
         if: always()
         run: |
-          echo "Collecting operator and Kruize pod logs..."
+          echo "Collecting operator and Kruize pod logs before test cleanup..."
           mkdir -p /tmp/pod-logs
 
           # Get operator pod logs
@@ -165,8 +176,19 @@ jobs:
           echo "Fetching Kruize pod logs..."
           kubectl logs -n ${{ env.NAMESPACE }} -l app=kruize --all-containers=true --tail=-1 > /tmp/pod-logs/kruize-logs.txt 2>&1 || echo "Failed to fetch Kruize logs" > /tmp/pod-logs/kruize-logs.txt
 
+          # Get Kruize DB pod logs
+          echo "Fetching Kruize DB pod logs..."
+          kubectl logs -n ${{ env.NAMESPACE }} -l app=kruize-db --all-containers=true --tail=-1 > /tmp/pod-logs/kruize-db-logs.txt 2>&1 || \
+          echo "Failed to fetch Kruize DB logs" > /tmp/pod-logs/kruize-db-logs.txt
+          
           echo "Pod logs collection completed"
           ls -lh /tmp/pod-logs/
+
+      - name: Check E2E test result
+        if: steps.e2e_tests.outcome == 'failure'
+        run: |
+          echo "E2E tests failed"
+          exit 1
 
       - name: Upload E2E test logs
         if: always()
