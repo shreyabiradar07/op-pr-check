@@ -81,7 +81,7 @@ var _ = Describe("controller", Ordered, func() {
 		}
 
 		// Collect operator logs
-		cmd = exec.Command("kubectl", "logs", "-n", namespace, "-l", "control-plane=controller-manager", "--all-containers=true", "--prefix=true", "--tail=-1")
+		cmd = exec.Command("kubectl", "logs", "-n", namespace, "-l", "control-plane=controller-manager", "--all-containers=true", "--prefix=true")
 		if output, err := utils.Run(cmd); err != nil {
 			fmt.Fprintf(GinkgoWriter, "Warning: Failed to collect operator logs: %v\n", err)
 		} else {
@@ -91,7 +91,7 @@ var _ = Describe("controller", Ordered, func() {
 		}
 
 		// Collect Kruize logs
-		cmd = exec.Command("kubectl", "logs", "-n", namespace, "-l", "app=kruize", "--all-containers=true", "--prefix=true", "--tail=-1")
+		cmd = exec.Command("kubectl", "logs", "-n", namespace, "-l", "app=kruize", "--all-containers=true", "--prefix=true")
 		if output, err := utils.Run(cmd); err != nil {
 			fmt.Fprintf(GinkgoWriter, "Warning: Failed to collect Kruize logs: %v\n", err)
 		} else {
@@ -101,7 +101,7 @@ var _ = Describe("controller", Ordered, func() {
 		}
 
 		// Collect Kruize DB logs
-		cmd = exec.Command("kubectl", "logs", "-n", namespace, "-l", "app=kruize-db", "--all-containers=true", "--prefix=true", "--tail=-1")
+		cmd = exec.Command("kubectl", "logs", "-n", namespace, "-l", "app=kruize-db", "--all-containers=true", "--prefix=true")
 		if output, err := utils.Run(cmd); err != nil {
 			fmt.Fprintf(GinkgoWriter, "Warning: Failed to collect Kruize DB logs: %v\n", err)
 		} else {
