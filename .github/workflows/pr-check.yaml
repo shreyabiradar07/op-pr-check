@@ -16,7 +16,7 @@ jobs:
   build-and-test:
     name: Build and Test Operator
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -162,7 +162,7 @@ jobs:
             CLUSTER_TYPE=kind \
             OPERATOR_IMAGE=${{ env.OPERATOR_IMAGE }} \
             NAMESPACE=${{ env.NAMESPACE }} \
-            2>&1 | tee /tmp/e2e-test-output.log
+            2>&1 | sed -r 's/\x1b\[[0-9;]*[mGKHF]//g' | tee /tmp/e2e-test-output.log
 
       - name: Upload E2E test logs
         if: always()
