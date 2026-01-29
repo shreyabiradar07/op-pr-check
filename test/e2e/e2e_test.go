@@ -18,6 +18,7 @@ package e2e
 
 import (
 	"fmt"
+    "os"
 	"os/exec"
 	"strings"
 	"time"
