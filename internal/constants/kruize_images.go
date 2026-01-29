@@ -23,8 +23,8 @@ const (
 	// envAutotuneImage is the environment variable name for overriding the default Autotune image
 	envAutotuneImage = "DEFAULT_AUTOTUNE_IMAGE"
 	
-	// envAutotuneUIImage is the environment variable name for overriding the default Autotune UI image
-	envAutotuneUIImage = "DEFAULT_AUTOTUNE_UI_IMAGE"
+	// envUIImage is the environment variable name for overriding the default Kruize UI image
+	envUIImage = "DEFAULT_AUTOTUNE_UI_IMAGE"
 )
 
 // Default container image versions
@@ -32,14 +32,14 @@ const (
 	// defaultAutotuneImageTag is the default tag for Kruize Autotune image
 	defaultAutotuneImageTag = "0.8.1"
 	
-	// defaultAutotuneUIImageTag is the default tag for Kruize UI image
-	defaultAutotuneUIImageTag = "0.0.9"
+	// defaultUIImageTag is the default tag for Kruize UI image
+	defaultUIImageTag = "0.0.9"
 	
 	// defaultAutotuneImageRepo is the default repository for Kruize Autotune image
 	defaultAutotuneImageRepo = "quay.io/kruize/autotune_operator"
 	
-	// defaultAutotuneUIImageRepo is the default repository for Kruize UI image
-	defaultAutotuneUIImageRepo = "quay.io/kruize/kruize-ui"
+	// defaultUIImageRepo is the default repository for Kruize UI image
+	defaultUIImageRepo = "quay.io/kruize/kruize-ui"
 )
 
 // Package-level variables that cache the resolved default images.
@@ -47,7 +47,7 @@ const (
 // environment variable lookups on every function call.
 var (
 	defaultAutotuneImage   string
-	defaultAutotuneUIImage string
+	defaultUIImage string
 )
 
 // init resolves the default images by checking environment variables once at package initialization.
@@ -61,10 +61,10 @@ func init() {
 	}
 	
 	// Resolve Autotune UI image
-	if envImage := os.Getenv(envAutotuneUIImage); envImage != "" {
-		defaultAutotuneUIImage = envImage
+	if envImage := os.Getenv(envUIImage); envImage != "" {
+		defaultUIImage = envImage
 	} else {
-		defaultAutotuneUIImage = defaultAutotuneUIImageRepo + ":" + defaultAutotuneUIImageTag
+		defaultUIImage = defaultUIImageRepo + ":" + defaultUIImageTag
 	}
 }
 
@@ -74,8 +74,8 @@ func GetDefaultAutotuneImage() string {
 	return defaultAutotuneImage
 }
 
-// GetDefaultAutotuneUIImage returns the cached default Autotune UI image.
+// GetDefaultUIImage returns the cached default Autotune UI image.
 // The image is resolved once at package initialization from environment variables or defaults.
-func GetDefaultAutotuneUIImage() string {
-	return defaultAutotuneUIImage
+func GetDefaultUIImage() string {
+	return defaultUIImage
 }

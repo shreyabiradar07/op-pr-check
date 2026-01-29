@@ -44,7 +44,7 @@ func NewKruizeResourceGenerator(namespace string, autotuneImage string, autotune
 		autotuneImage = constants.GetDefaultAutotuneImage()
 	}
 	if autotuneUIImage == "" {
-		autotuneUIImage = constants.GetDefaultAutotuneUIImage()
+		autotuneUIImage = constants.GetDefaultUIImage()
 	}
 	if clusterType == "" {
 		clusterType = constants.ClusterTypeOpenShift // Default to openshift for backward compatibility

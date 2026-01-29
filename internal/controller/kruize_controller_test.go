@@ -51,6 +51,16 @@ func findTypedResource[T client.Object](resources []client.Object, name string, 
 	return zero
 }
 
+// findContainerByName is a helper function to find a specific container by name in a container list
+func findContainerByName(containers []corev1.Container, name string) *corev1.Container {
+	for i := range containers {
+		if containers[i].Name == name {
+			return &containers[i]
+		}
+	}
+	return nil
+}
+
 var _ = Describe("Kruize Controller", func() {
 	ctx := context.Background()
 
@@ -103,7 +113,7 @@ var _ = Describe("Kruize Controller", func() {
 						Cluster_type:      clusterType,
 						Namespace:         namespace,
 						Autotune_image:    constants.GetDefaultAutotuneImage(),
-						Autotune_ui_image: constants.GetDefaultAutotuneUIImage(),
+						Autotune_ui_image: constants.GetDefaultUIImage(),
 					},
 				}
 				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
@@ -141,7 +151,7 @@ var _ = Describe("Kruize Controller", func() {
 						Cluster_type:      clusterType,
 						Namespace:         "test",
 						Autotune_image:    constants.GetDefaultAutotuneImage(),
-						Autotune_ui_image: constants.GetDefaultAutotuneUIImage(),
+						Autotune_ui_image: constants.GetDefaultUIImage(),
 					},
 				}
 				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
@@ -186,7 +196,7 @@ var _ = Describe("Kruize Controller", func() {
 						Cluster_type:      clusterType,
 						Namespace:         namespace,
 						Autotune_image:    constants.GetDefaultAutotuneImage(),
-						Autotune_ui_image: constants.GetDefaultAutotuneUIImage(),
+						Autotune_ui_image: constants.GetDefaultUIImage(),
 					},
 				}
 				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
@@ -226,7 +236,7 @@ var _ = Describe("Kruize Controller", func() {
 						Cluster_type:      clusterType,
 						Namespace:         testNamespace,
 						Autotune_image:    constants.GetDefaultAutotuneImage(),
-						Autotune_ui_image: constants.GetDefaultAutotuneUIImage(),
+						Autotune_ui_image: constants.GetDefaultUIImage(),
 					},
 				}
 				Expect(k8sClient.Create(ctx, kruize)).To(Succeed())
@@ -323,7 +333,7 @@ var _ = Describe("Kruize Controller", func() {
 			generator := utils.NewKruizeResourceGenerator("test-namespace", "", "", constants.ClusterTypeOpenShift)
 
 			Expect(generator.Autotune_image).To(Equal(constants.GetDefaultAutotuneImage()))
-			Expect(generator.Autotune_ui_image).To(Equal(constants.GetDefaultAutotuneUIImage()))
+			Expect(generator.Autotune_ui_image).To(Equal(constants.GetDefaultUIImage()))
 		})
 
 		It("should use custom images when specified", func() {
@@ -736,7 +746,7 @@ var _ = Describe("Kruize Controller", func() {
     		// This test verifies that the generator is wired to use the default-image helpers
     		Expect(generator.Autotune_image).To(Equal(constants.GetDefaultAutotuneImage()),
     			"Generator should default Autotune_image when empty")
-    		Expect(generator.Autotune_ui_image).To(Equal(constants.GetDefaultAutotuneUIImage()),
+    		Expect(generator.Autotune_ui_image).To(Equal(constants.GetDefaultUIImage()),
     			"Generator should default Autotune_ui_image when empty")
 
     		By("verifying the generated resources use default images")
@@ -746,15 +756,22 @@ var _ = Describe("Kruize Controller", func() {
     		kruizeDeployment := findTypedResource[*appsv1.Deployment](namespacedResources, "kruize", "app", "kruize")
     		Expect(kruizeDeployment).NotTo(BeNil(), "Kruize deployment should be generated")
     		Expect(kruizeDeployment.Spec.Template.Spec.Containers).NotTo(BeEmpty())
-    		Expect(kruizeDeployment.Spec.Template.Spec.Containers[0].Image).
-    			To(Equal(constants.GetDefaultAutotuneImage()),
-    				"Kruize deployment should use default Autotune image")
-
+    		
+    		// Find the kruize (autotune) container by name using helper
+    		kruizeContainer := findContainerByName(kruizeDeployment.Spec.Template.Spec.Containers, "kruize")
+    		Expect(kruizeContainer).NotTo(BeNil(), "Kruize container should exist in deployment")
+    		Expect(kruizeContainer.Image).To(Equal(constants.GetDefaultAutotuneImage()),
+    			"Kruize deployment should use default Autotune image")
+    
     		// Find and verify UI pod using helper
     		kruizeUIPod := findTypedResource[*corev1.Pod](namespacedResources, "kruize-ui-nginx-pod", "app", "kruize-ui-nginx")
     		Expect(kruizeUIPod).NotTo(BeNil(), "Kruize UI pod should be generated")
     		Expect(kruizeUIPod.Spec.Containers).NotTo(BeEmpty())
-    		Expect(kruizeUIPod.Spec.Containers[0].Image).To(Equal(constants.GetDefaultAutotuneUIImage()),
+    		
+    		// Find the kruize-ui-nginx container by name using helper
+    		uiContainer := findContainerByName(kruizeUIPod.Spec.Containers, "kruize-ui-nginx-container")
+    		Expect(uiContainer).NotTo(BeNil(), "Kruize UI container should exist in pod")
+    		Expect(uiContainer.Image).To(Equal(constants.GetDefaultUIImage()),
     			"Kruize UI pod should use default UI image")
     	})
 
