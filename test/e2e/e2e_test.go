@@ -18,8 +18,9 @@ package e2e
 
 import (
 	"fmt"
-    "os"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -53,48 +54,58 @@ var _ = Describe("controller", Ordered, func() {
 	AfterAll(func() {
 		// Collect pod logs before cleanup
 		By("collecting pod logs before cleanup")
-		fmt.Fprintf(GinkgoWriter, "Collecting pod logs to /tmp/pod-logs/\n")
 
-		// Create log directory
-		cmd := exec.Command("mkdir", "-p", "/tmp/pod-logs")
-		_, _ = utils.Run(cmd)
+		// Define log directory path
+		logDir := "/tmp/pod-logs"
+
+		// Remove any existing directory/file/symlink at the target path
+		// This prevents symlink attacks by ensuring we create a real directory
+		_ = os.RemoveAll(logDir)
+
+		// Create directory with secure permissions
+		if err := os.Mkdir(logDir, 0700); err != nil {
+			fmt.Fprintf(GinkgoWriter, "Warning: Failed to create log directory: %v\n", err)
+			return
+		}
+
+		fmt.Fprintf(GinkgoWriter, "Collecting pod logs to %s\n", logDir)
 
 		// Collect pod list
-		cmd = exec.Command("kubectl", "get", "pods", "-n", namespace, "-o", "wide")
+		cmd := exec.Command("kubectl", "get", "pods", "-n", namespace, "-o", "wide")
 		if output, err := utils.Run(cmd); err != nil {
 			fmt.Fprintf(GinkgoWriter, "Warning: Failed to collect pod list: %v\n", err)
 		} else {
-			if err := os.WriteFile("/tmp/pod-logs/pod-list.txt", output, 0644); err != nil {
+			if err := os.WriteFile(filepath.Join(logDir, "pod-list.txt"), output, 0600); err != nil {
 				fmt.Fprintf(GinkgoWriter, "Warning: Failed to write pod list: %v\n", err)
 			}
 		}
 
 		// Collect operator logs
-		cmd = exec.Command("kubectl", "logs", "-n", namespace, "-l", "control-plane=controller-manager", "--all-containers=true")
+		cmd = exec.Command("kubectl", "logs", "-n", namespace, "-l", "control-plane=controller-manager", "--all-containers=true", "--prefix=true")
 		if output, err := utils.Run(cmd); err != nil {
 			fmt.Fprintf(GinkgoWriter, "Warning: Failed to collect operator logs: %v\n", err)
 		} else {
-			if err := os.WriteFile("/tmp/pod-logs/operator-logs.txt", output, 0644); err != nil {
+			if err := os.WriteFile(filepath.Join(logDir, "operator-logs.txt"), output, 0600); err != nil {
 				fmt.Fprintf(GinkgoWriter, "Warning: Failed to write operator logs: %v\n", err)
 			}
 		}
 
 		// Collect Kruize logs
-		cmd = exec.Command("kubectl", "logs", "-n", namespace, "-l", "app=kruize", "--all-containers=true")
+		cmd = exec.Command("kubectl", "logs", "-n", namespace, "-l", "app=kruize", "--all-containers=true", "--prefix=true")
 		if output, err := utils.Run(cmd); err != nil {
 			fmt.Fprintf(GinkgoWriter, "Warning: Failed to collect Kruize logs: %v\n", err)
 		} else {
-			if err := os.WriteFile("/tmp/pod-logs/kruize-logs.txt", output, 0644); err != nil {
+			if err := os.WriteFile(filepath.Join(logDir, "kruize-logs.txt"), output, 0600); err != nil {
 				fmt.Fprintf(GinkgoWriter, "Warning: Failed to write Kruize logs: %v\n", err)
 			}
 		}
 
 		// Collect Kruize DB logs
-		cmd = exec.Command("kubectl", "logs", "-n", namespace, "-l", "app=kruize-db", "--all-containers=true")
+		cmd = exec.Command("kubectl", "logs", "-n", namespace, "-l", "app=kruize-db", "--all-containers=true", "--prefix=true")
 		if output, err := utils.Run(cmd); err != nil {
 			fmt.Fprintf(GinkgoWriter, "Warning: Failed to collect Kruize DB logs: %v\n", err)
 		} else {
-			if err := os.WriteFile("/tmp/pod-logs/kruize-db-logs.txt", output, 0644); err != nil {
+			if err := os.WriteFile(filepath.Join(logDir, "kruize-db-logs.txt"), output, 0600); err != nil {
 				fmt.Fprintf(GinkgoWriter, "Warning: Failed to write Kruize DB logs: %v\n", err)
 			}
 		}
