@@ -28,6 +28,27 @@ For examples of running Kruize and the operator, see [kruize-demos](https://gith
 - [operator-sdk](https://github.com/operator-framework/operator-sdk) v1.37.0+ (as specified in Makefile)
 - Docker version 17.03+
 
+### Configuration
+
+**Environment Variables:**
+
+The operator supports the following environment variables for customizing default container images:
+
+| Variable | Description |
+|----------|-------------|
+| `DEFAULT_AUTOTUNE_IMAGE` | Override the default Kruize Autotune container image |
+| `DEFAULT_AUTOTUNE_UI_IMAGE` | Override the default Kruize UI container image |
+
+
+**Example Usage:**
+```sh
+# Use custom registry/versions
+export DEFAULT_AUTOTUNE_IMAGE="my-registry.io/kruize/autotune_operator:custom-tag"
+export DEFAULT_AUTOTUNE_UI_IMAGE="my-registry.io/kruize/kruize-ui:custom-tag"
+```
+
+These environment variables are checked once at operator startup. When the operator creates Kruize resources with empty `autotune_image` or `autotune_ui_image` fields in the CR spec, it uses these environment variable values (if set) or the built-in defaults. If the CR explicitly specifies image values, those take precedence over environment variables.
+
 ### Deployment
 
 The operator uses Kustomize overlays to manage platform-specific configurations:
