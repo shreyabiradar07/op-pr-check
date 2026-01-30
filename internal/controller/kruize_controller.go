@@ -65,7 +65,7 @@ type KruizeReconciler struct {
 //+kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;create
-//+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch;create
+//+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;create
 //+kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;watch;create
@@ -291,14 +291,6 @@ func (r *KruizeReconciler) deployKruizeComponents(ctx context.Context, namespace
 
 	if clusterType == constants.ClusterTypeOpenShift {
 		// OpenShift-specific resources
-
-        	// Reconcile Namespace FIRST (no owner reference)
-        	kruizeNamespace := k8sObjectGenerator.KruizeNamespace()
-        	if err := r.reconcileClusterResource(ctx, kruizeNamespace); err != nil {
-            		logger.Error(err, "Failed to reconcile Namespace")
-            		return err
-        	}
-
         	kruizeServiceAccount := k8sObjectGenerator.KruizeServiceAccount()
         	if err := r.reconcileClusterResource(ctx, kruizeServiceAccount); err != nil {
             		logger.Error(err, "Failed to reconcile kruize service account")

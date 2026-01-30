@@ -138,19 +138,6 @@ func (g *KruizeResourceGenerator) generateRoute(name, serviceName, targetPort st
 }
 
 // kruizeServiceAccount generates the ServiceAccount for Kruize.
-func (g *KruizeResourceGenerator) KruizeNamespace() *corev1.Namespace {
-	return &corev1.Namespace{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Namespace",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: g.Namespace,
-		},
-	}
-}
-
-// kruizeServiceAccount generates the ServiceAccount for Kruize.
 func (g *KruizeResourceGenerator) KruizeServiceAccount() *corev1.ServiceAccount {
 	return &corev1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
