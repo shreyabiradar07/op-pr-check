@@ -91,8 +91,8 @@ func (g *KruizeResourceGenerator) NamespacedResources() []client.Object {
 		g.deletePartitionCronJob(),
 	}
 
-    objects = append(objects, g.Routes()...)
-    return objects
+	objects = append(objects, g.Routes()...)
+	return objects
 }
 
 func (g *KruizeResourceGenerator) Routes() []client.Object {
@@ -179,11 +179,10 @@ func (g *KruizeResourceGenerator) recommendationUpdaterClusterRole() *rbacv1.Clu
 			{APIGroups: []string{""}, Resources: []string{"nodes", "namespaces", "services", "endpoints"}, Verbs: []string{"get", "list", "watch"}},
 			{APIGroups: []string{"apps"}, Resources: []string{"deployments", "replicasets", "statefulsets", "daemonsets"}, Verbs: []string{"get", "list", "watch"}},
 			{APIGroups: []string{"extensions", "networking.k8s.io"}, Resources: []string{"ingresses"}, Verbs: []string{"get", "list", "watch"}},
-			{APIGroups: []string{"autoscaling.k8s.io"}, Resources: []string{"verticalpodautoscalers"}, Verbs: []string{"get", "list", "watch", "create", "update", "patch"}},
 			{APIGroups: []string{"metrics.k8s.io"}, Resources: []string{"pods", "nodes"}, Verbs: []string{"get", "list"}},
 			{APIGroups: []string{"monitoring.coreos.com"}, Resources: []string{"prometheuses", "alertmanagers", "servicemonitors"}, Verbs: []string{"get", "list", "watch"}, ResourceNames: []string{"*"}},
 			{APIGroups: []string{"monitoring.coreos.com"}, Resources: []string{"prometheuses/api"}, Verbs: []string{"get", "create", "update"}},
-			{APIGroups: []string{"apiextensions.k8s.io"}, Resources: []string{"customresourcedefinitions"}, Verbs: []string{"get", "list", "watch", "create"}},
+			{APIGroups: []string{"apiextensions.k8s.io"}, Resources: []string{"customresourcedefinitions"}, Verbs: []string{"get", "list", "watch"}},
 			{APIGroups: []string{"autoscaling.k8s.io"}, Resources: []string{"verticalpodautoscalers", "verticalpodautoscalers/status", "verticalpodautoscalercheckpoints"}, Verbs: []string{"get", "list", "watch", "create", "update", "patch"}},
 			{APIGroups: []string{"rbac.authorization.k8s.io"}, Resources: []string{"clusterrolebindings"}, Verbs: []string{"get", "list", "watch", "create"}},
 			{NonResourceURLs: []string{"/metrics", "/api/v1/label/*", "/api/v1/query*", "/api/v1/series*", "/api/v1/targets*"}, Verbs: []string{"get"}},
