@@ -7,7 +7,7 @@ metadata:
   name: permission-granter-binding
 subjects:
   - kind: ServiceAccount
-    name: controller-manager
+    name: kruize-operator
     # namespace: system is a placeholder that kustomize automatically transforms
     # to the target namespace (monitoring, openshift-tuning, etc.) during build
     namespace: system
