@@ -16,7 +16,7 @@ metadata:
           },
           "spec": {
             "autotune_configmaps": "autotune-configmaps",
-            "autotune_image": "quay.io/kruize/autotune_operator:0.8",
+            "autotune_image": "quay.io/kruize/autotune_operator:0.8.1",
             "autotune_ui_image": "quay.io/kruize/kruize-ui:0.0.9",
             "cluster_type": "openshift",
             "namespace": "openshift-tuning",
