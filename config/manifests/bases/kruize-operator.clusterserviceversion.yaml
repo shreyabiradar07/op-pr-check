@@ -5,7 +5,7 @@ metadata:
     alm-examples: '[]'
     capabilities: Basic Install
     categories: Monitoring, Developer Tools
-    containerImage: quay.io/kruize/kruize-operator:0.0.3
+    containerImage: quay.io/kruize/kruize-operator:0.0.4
     description: Resource optimization tool for Kubernetes workloads
     operators.operatorframework.io/builder: operator-sdk-v1.37.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4

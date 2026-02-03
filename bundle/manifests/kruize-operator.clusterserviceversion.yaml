@@ -28,14 +28,14 @@ metadata:
       ]
     capabilities: Basic Install
     categories: Monitoring, Developer Tools
-    containerImage: quay.io/kruize/kruize-operator:0.0.3
+    containerImage: quay.io/kruize/kruize-operator:0.0.4
     createdAt: "2026-01-16T09:19:14Z"
     description: Resource optimization tool for Kubernetes workloads
     operators.operatorframework.io/builder: operator-sdk-v1.37.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/kruize/kruize-operator
     support: Kruize Community
-  name: kruize-operator.v0.0.3
+  name: kruize-operator.v0.0.4
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -616,7 +616,7 @@ spec:
                 - --leader-elect
                 command:
                 - /app/manager
-                image: quay.io/kruize/kruize-operator:0.0.3
+                image: quay.io/kruize/kruize-operator:0.0.4
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -713,4 +713,4 @@ spec:
   minKubeVersion: 1.23.0
   provider:
     name: Kruize
-  version: 0.0.3
+  version: 0.0.4
