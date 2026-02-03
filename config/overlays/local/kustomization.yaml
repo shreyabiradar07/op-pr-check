@@ -7,20 +7,3 @@ resources:
 
 # Set the namespace for local Kubernetes deployments (Minikube, Kind, etc.)
 namespace: monitoring
-
-# Override namePrefix for Deployment and ServiceAccount to keep them as just "kruize-operator"
-patches:
-- target:
-    kind: Deployment
-    name: kruize-operator-kruize-operator
-  patch: |-
-    - op: replace
-      path: /metadata/name
-      value: kruize-operator
-- target:
-    kind: ServiceAccount
-    name: kruize-operator-kruize-operator
-  patch: |-
-    - op: replace
-      path: /metadata/name
-      value: kruize-operator
