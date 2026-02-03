@@ -5,8 +5,8 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: kruize-operator
-    control-plane: controller-manager
-  name: kruize-operator-controller-manager-metrics-service
+    control-plane: kruize-operator
+  name: kruize-operator-metrics-service
 spec:
   ports:
   - name: https
@@ -14,6 +14,6 @@ spec:
     protocol: TCP
     targetPort: https
   selector:
-    control-plane: controller-manager
+    control-plane: kruize-operator
 status:
   loadBalancer: {}
