@@ -6,23 +6,6 @@ resources:
 - ../samples
 - ../scorecard
 
-# Override namePrefix for Deployment and ServiceAccount to keep them as just "kruize-operator"
-patches:
-- target:
-    kind: Deployment
-    name: kruize-operator-kruize-operator
-  patch: |-
-    - op: replace
-      path: /metadata/name
-      value: kruize-operator
-- target:
-    kind: ServiceAccount
-    name: kruize-operator-kruize-operator
-  patch: |-
-    - op: replace
-      path: /metadata/name
-      value: kruize-operator
-
 # [WEBHOOK] To enable webhooks, uncomment all the sections with [WEBHOOK] prefix.
 # Do NOT uncomment sections with prefix [CERTMANAGER], as OLM does not support cert-manager.
 # These patches remove the unnecessary "cert" volume and its manager container volumeMount.
