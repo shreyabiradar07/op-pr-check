@@ -6,7 +6,7 @@ metadata:
     control-plane: kruize-operator
     app.kubernetes.io/name: kruize-operator
     app.kubernetes.io/managed-by: kustomize
-  name: kruize-operator-metrics-monitor
+  name: metrics-monitor
   namespace: system
 spec:
   endpoints:
