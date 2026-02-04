@@ -112,7 +112,7 @@ var _ = Describe("controller", Ordered, func() {
 
 		fmt.Fprintf(GinkgoWriter, "Pod logs collection completed\n")
 
-		By("undeploying the controller-manager")
+		By("undeploying the kruize-operator")
 		// Determine overlay based on cluster type
 		overlay := "local"
 		if clusterType == constants.ClusterTypeOpenShift {
@@ -146,7 +146,7 @@ var _ = Describe("controller", Ordered, func() {
 			_, err = utils.Run(cmd)
 			ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
-			By(fmt.Sprintf("deploying the controller-manager to namespace %s", namespace))
+			By(fmt.Sprintf("deploying the kruize-operator to namespace %s", namespace))
 			// Determine overlay based on cluster type
 			overlay := "local"
 			if clusterType == constants.ClusterTypeOpenShift {
@@ -156,12 +156,11 @@ var _ = Describe("controller", Ordered, func() {
 			_, err = utils.Run(cmd)
 			ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
-			By("validating that the controller-manager pod is running as expected")
+			By("validating that the kruize-operator pod is running as expected")
 			verifyControllerUp := func() error {
 				// Get pod name
-
 				cmd = exec.Command("kubectl", "get",
-					"pods", "-l", "control-plane=controller-manager",
+					"pods", "-l", "control-plane=kruize-operator",
 					"-o", "go-template={{ range .items }}"+
 						"{{ if not .metadata.deletionTimestamp }}"+
 						"{{ .metadata.name }}"+
@@ -176,7 +175,7 @@ var _ = Describe("controller", Ordered, func() {
 					return fmt.Errorf("expect 1 controller pods running, but got %d", len(podNames))
 				}
 				controllerPodName = podNames[0]
-				ExpectWithOffset(2, controllerPodName).Should(ContainSubstring("controller-manager"))
+				ExpectWithOffset(2, controllerPodName).Should(ContainSubstring("kruize-operator"))
 
 				// Validate pod status
 				cmd = exec.Command("kubectl", "get",

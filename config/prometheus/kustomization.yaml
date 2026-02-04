@@ -1,2 +1,6 @@
+# namePrefix will be applied to prometheus monitoring resources
+# This ensures consistent kruize-operator- prefix
+namePrefix: kruize-operator-
+
 resources:
 - monitor.yaml
