@@ -54,7 +54,7 @@ type KruizeReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=kruize.io,resources=kruizes,verbs=get;list;watch;create
+//+kubebuilder:rbac:groups=kruize.io,resources=kruizes,verbs=get;list;watch
 //+kubebuilder:rbac:groups=kruize.io,resources=kruizes/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=kruize.io,resources=kruizes/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
@@ -65,11 +65,11 @@ type KruizeReconciler struct {
 //+kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;create
-//+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch;create
+//+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;create
 //+kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;create
+//+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=inference.redhat.com,resources=instaslices,verbs=get;list;watch
@@ -77,24 +77,23 @@ type KruizeReconciler struct {
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;create;list;watch
 //+kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=get;list;watch;create;update;patch
-//+kubebuilder:rbac:groups=extensions,resources=ingresses,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create
+//+kubebuilder:rbac:groups=extensions,resources=ingresses,verbs=get;list;watch
+//+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch
 //+kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,verbs=get;create;use
-//+kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;create;list;watch
+//+kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,verbs=use
+//+kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch
 //+kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create
 //+kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch;create
 //+kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheuses,verbs=get;list;watch;create;update;patch
-//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheuses/api,verbs=get;list;watch;create;update;patch
-//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=alertmanagers,verbs=get;list;watch;create;update;patch
-//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheusrules,verbs=get;list;watch;create;update;patch
+//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheuses,verbs=get;list;watch
+//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheuses/api,verbs=get;create;update
+//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=alertmanagers,verbs=get;list;watch
 //+kubebuilder:rbac:groups="",resources=endpoints,verbs=get;list;watch
 //+kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
 //+kubebuilder:rbac:groups=metrics.k8s.io,resources=pods,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=metrics.k8s.io,resources=nodes,verbs=get;list;
+//+kubebuilder:rbac:groups=metrics.k8s.io,resources=nodes,verbs=get;list
 //+kubebuilder:rbac:groups=autoscaling.k8s.io,resources=verticalpodautoscalers,verbs=get;list;watch;create;update;patch
 //+kubebuilder:rbac:groups=autoscaling.k8s.io,resources=verticalpodautoscalers/status,verbs=get;list;watch;create;update;patch
 //+kubebuilder:rbac:groups=autoscaling.k8s.io,resources=verticalpodautoscalercheckpoints,verbs=get;list;watch;create;update;patch
@@ -236,21 +235,20 @@ func (r *KruizeReconciler) checkKruizePodsStatus(ctx context.Context, namespace 
 }
 
 func (r *KruizeReconciler) deployKruize(ctx context.Context, kruize *kruizev1alpha1.Kruize) error {
-	// Add debug output
-	fmt.Printf("=== DEBUG: Kruize Spec Fields ===\n")
-	fmt.Printf("Cluster_type: '%s'\n", kruize.Spec.Cluster_type)
-	fmt.Printf("Namespace: '%s'\n", kruize.Spec.Namespace)
-	fmt.Printf("Size: %d\n", kruize.Spec.Size)
-	fmt.Printf("Autotune_image: '%s'\n", kruize.Spec.Autotune_image)
-	fmt.Printf("=== END DEBUG ===\n")
+	logger := log.FromContext(ctx)
+	
+	// Log Kruize spec configuration
+	logger.Info("Deploying Kruize",
+		"cluster_type", kruize.Spec.Cluster_type,
+		"namespace", kruize.Spec.Namespace,
+		"autotune_image", kruize.Spec.Autotune_image,
+		"autotune_ui_image", kruize.Spec.Autotune_ui_image)
 
 	// Normalize and validate cluster type (case-insensitive)
 	cluster_type := kruize.Spec.Cluster_type
 	if !constants.IsValidClusterType(cluster_type) {
 		return fmt.Errorf("unsupported cluster type: %s. Supported types are: %s", cluster_type, strings.Join(constants.SupportedClusterTypes, ", "))
 	}
-	
-	fmt.Println("Deploying Kruize for cluster type:", cluster_type)
 
 	var autotune_ns = kruize.Spec.Namespace
 
@@ -260,7 +258,7 @@ func (r *KruizeReconciler) deployKruize(ctx context.Context, kruize *kruizev1alp
 		return fmt.Errorf("Failed to deploy Kruize components: %v", err)
 	}
 
-	fmt.Printf("Successfully deployed Kruize components to namespace: %s\n", autotune_ns)
+	logger.Info("Successfully deployed Kruize components to namespace", "namespace", autotune_ns)
 	return nil
 }
 
@@ -293,14 +291,6 @@ func (r *KruizeReconciler) deployKruizeComponents(ctx context.Context, namespace
 
 	if clusterType == constants.ClusterTypeOpenShift {
 		// OpenShift-specific resources
-
-        	// Reconcile Namespace FIRST (no owner reference)
-        	kruizeNamespace := k8sObjectGenerator.KruizeNamespace()
-        	if err := r.reconcileClusterResource(ctx, kruizeNamespace); err != nil {
-            		logger.Error(err, "Failed to reconcile Namespace")
-            		return err
-        	}
-
         	kruizeServiceAccount := k8sObjectGenerator.KruizeServiceAccount()
         	if err := r.reconcileClusterResource(ctx, kruizeServiceAccount); err != nil {
             		logger.Error(err, "Failed to reconcile kruize service account")

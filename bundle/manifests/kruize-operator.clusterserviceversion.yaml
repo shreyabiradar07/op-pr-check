@@ -15,85 +15,58 @@ metadata:
             "name": "kruize-sample"
           },
           "spec": {
-            "autotune_configmaps": "autotune-configmaps",
-            "autotune_image": "quay.io/kruize/autotune_operator:0.8",
+            "autotune_image": "quay.io/kruize/autotune_operator:0.8.1",
             "autotune_ui_image": "quay.io/kruize/kruize-ui:0.0.9",
             "cluster_type": "openshift",
-            "namespace": "openshift-tuning",
-            "non_interactive": 1,
-            "size": 3,
-            "use_yaml_build": 0
+            "namespace": "openshift-tuning"
           }
         }
       ]
     capabilities: Basic Install
     categories: Monitoring, Developer Tools
-    containerImage: quay.io/kruize/kruize-operator:0.0.3
-    createdAt: "2026-01-16T09:19:14Z"
+    containerImage: quay.io/kruize/kruize-operator:0.0.4
+    createdAt: "2026-02-04T08:25:45Z"
     description: Resource optimization tool for Kubernetes workloads
     operators.operatorframework.io/builder: operator-sdk-v1.37.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/kruize/kruize-operator
     support: Kruize Community
-  name: kruize-operator.v0.0.3
+  name: kruize-operator.v0.0.4
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: Kruize is the Schema for the kruizes API
+    - description: Kruize contains configuration options for controlling the deployment
+        of the Kruize application and its related components. A Kruize instance must
+        be created to instruct the operator to deploy the Kruize application.
       displayName: Kruize
       kind: Kruize
       name: kruizes.kruize.io
       resources:
-      - kind: Deployment
-        name: ''
-        version: v1
-      - kind: Service
-        name: ''
-        version: v1
-      - kind: ServiceAccount
-        name: ''
-        version: v1
       - kind: ConfigMap
-        name: ''
+        name: ""
+        version: v1
+      - kind: Deployment
+        name: ""
         version: v1
       - kind: PersistentVolume
-        name: ''
+        name: ""
         version: v1
       - kind: PersistentVolumeClaim
-        name: ''
+        name: ""
+        version: v1
+      - kind: Service
+        name: ""
+        version: v1
+      - kind: ServiceAccount
+        name: ""
         version: v1
       - kind: StorageClass
-        name: ''
+        name: ""
         version: v1
       specDescriptors:
-      - description: Namespace where Kruize components will be deployed
-        displayName: Namespace
-        path: namespace
-        x-descriptors:
-        - urn:alm:descriptor:com.tectonic.ui:text
-      - description: Non-interactive mode flag (1 for enabled, 0 for disabled)
-        displayName: Non Interactive
-        path: non_interactive
-        x-descriptors:
-        - urn:alm:descriptor:com.tectonic.ui:number
-      - description: Size of the Kruize deployment
-        displayName: Size
-        path: size
-        x-descriptors:
-        - urn:alm:descriptor:com.tectonic.ui:number
-      - description: Use YAML build flag (1 for enabled, 0 for disabled)
-        displayName: Use YAML Build
-        path: use_yaml_build
-        x-descriptors:
-        - urn:alm:descriptor:com.tectonic.ui:number
-      - description: ConfigMaps for Autotune configuration
-        displayName: Autotune ConfigMaps
-        path: autotune_configmaps
-        x-descriptors:
-        - urn:alm:descriptor:com.tectonic.ui:text
-      - description: Container image for Autotune operator
+      - description: Container image for Kruize Autotune
         displayName: Autotune Image
         path: autotune_image
         x-descriptors:
@@ -110,6 +83,11 @@ spec:
         - urn:alm:descriptor:com.tectonic.ui:select:openshift
         - urn:alm:descriptor:com.tectonic.ui:select:minikube
         - urn:alm:descriptor:com.tectonic.ui:select:kind
+      - description: Target namespace for Kruize deployment
+        displayName: Namespace
+        path: namespace
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
       version: v1alpha1
   description: |
     Kruize is resource optimization tool for Kubernetes that helps you achieve significant cost
@@ -194,7 +172,6 @@ spec:
           resources:
           - namespaces
           verbs:
-          - create
           - get
           - list
           - watch
@@ -263,7 +240,6 @@ spec:
           resources:
           - customresourcedefinitions
           verbs:
-          - create
           - get
           - list
           - watch
@@ -341,7 +317,6 @@ spec:
           resources:
           - jobs
           verbs:
-          - create
           - get
           - list
         - apiGroups:
@@ -349,7 +324,6 @@ spec:
           resources:
           - ingresses
           verbs:
-          - create
           - get
           - list
           - watch
@@ -366,7 +340,6 @@ spec:
           resources:
           - kruizes
           verbs:
-          - create
           - get
           - list
           - watch
@@ -405,22 +378,16 @@ spec:
           resources:
           - alertmanagers
           verbs:
-          - create
           - get
           - list
-          - patch
-          - update
           - watch
         - apiGroups:
           - monitoring.coreos.com
           resources:
           - prometheuses
           verbs:
-          - create
           - get
           - list
-          - patch
-          - update
           - watch
         - apiGroups:
           - monitoring.coreos.com
@@ -429,21 +396,7 @@ spec:
           verbs:
           - create
           - get
-          - list
-          - patch
           - update
-          - watch
-        - apiGroups:
-          - monitoring.coreos.com
-          resources:
-          - prometheusrules
-          verbs:
-          - create
-          - get
-          - list
-          - patch
-          - update
-          - watch
         - apiGroups:
           - monitoring.coreos.com
           resources:
@@ -460,7 +413,6 @@ spec:
           resources:
           - ingresses
           verbs:
-          - create
           - get
           - list
           - watch
@@ -521,8 +473,6 @@ spec:
           resources:
           - securitycontextconstraints
           verbs:
-          - create
-          - get
           - use
         - apiGroups:
           - storage.k8s.io
@@ -571,20 +521,20 @@ spec:
       - label:
           app.kubernetes.io/managed-by: kustomize
           app.kubernetes.io/name: kruize-operator
-          control-plane: controller-manager
-        name: kruize-operator-controller-manager
+          control-plane: kruize-operator
+        name: kruize-operator
         spec:
           replicas: 1
           selector:
             matchLabels:
-              control-plane: controller-manager
+              control-plane: kruize-operator
           strategy: {}
           template:
             metadata:
               annotations:
                 kubectl.kubernetes.io/default-container: manager
               labels:
-                control-plane: controller-manager
+                control-plane: kruize-operator
             spec:
               containers:
               - args:
@@ -616,7 +566,7 @@ spec:
                 - --leader-elect
                 command:
                 - /app/manager
-                image: quay.io/kruize/kruize-operator:0.0.3
+                image: quay.io/kruize/kruize-operator:0.0.4
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -713,4 +663,4 @@ spec:
   minKubeVersion: 1.23.0
   provider:
     name: Kruize
-  version: 0.0.3
+  version: 0.0.4

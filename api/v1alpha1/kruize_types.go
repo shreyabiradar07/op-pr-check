@@ -28,15 +28,21 @@ type KruizeSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of Kruize. Edit kruize_types.go to remove/update
-	Size                int32  `json:"size"`
-	Cluster_type        string `json:"cluster_type"`
-	Autotune_image      string  `json:"autotune_image"`
-	Autotune_ui_image   string `json:"autotune_ui_image"`
-	Autotune_configmaps string `json:"autotune_configmaps"`
-	Non_interactive     int32  `json:"non_interactive"`
-	Use_yaml_build      int32  `json:"use_yaml_build"`
-	Namespace           string `json:"namespace"`
+	// Type of Kubernetes cluster (openshift, minikube, or kind)
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Cluster Type",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:select:openshift","urn:alm:descriptor:com.tectonic.ui:select:minikube","urn:alm:descriptor:com.tectonic.ui:select:kind"}
+	Cluster_type      string `json:"cluster_type"`
+
+	// Container image for Kruize Autotune
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Autotune Image",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	Autotune_image    string `json:"autotune_image"`
+
+	// Container image for Kruize UI
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Autotune UI Image",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	Autotune_ui_image string `json:"autotune_ui_image"`
+
+	// Target namespace for Kruize deployment
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Namespace",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	Namespace         string `json:"namespace"`
 }
 
 // KruizeStatus defines the observed state of Kruize
@@ -46,9 +52,12 @@ type KruizeStatus struct {
 	Nodes []string `json:"nodes"`
 }
 
-// Kruize is the Schema for the kruizes API
+// Kruize contains configuration options for controlling the deployment of the Kruize
+// application and its related components. A Kruize instance must be created to instruct
+// the operator to deploy the Kruize application.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +operator-sdk:csv:customresourcedefinitions:resources={{Deployment,v1},{Service,v1},{ServiceAccount,v1},{ConfigMap,v1},{PersistentVolume,v1},{PersistentVolumeClaim,v1},{StorageClass,v1}}
 type Kruize struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

@@ -5,12 +5,9 @@
 # - For Minikube/Kind: monitoring (config/overlays/local)
 namespace: default
 
-# Value of this field is prepended to the
-# names of all resources, e.g. a deployment named
-# "wordpress" becomes "alices-wordpress".
-# Note that it should also match with the prefix (text before '-') of the namespace
-# field above.
-namePrefix: kruize-operator-
+# namePrefix removed from here and moved to config/rbac/kustomization.yaml
+# This allows RBAC resources to have kruize-operator- prefix while keeping
+# other resources (like deployment) with their base names
 
 # Labels to add to all resources and selectors.
 #labels:

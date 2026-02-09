@@ -17,7 +17,10 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Kruize is the Schema for the kruizes API
+        description: |-
+          Kruize contains configuration options for controlling the deployment of the Kruize
+          application and its related components. A Kruize instance must be created to instruct
+          the operator to deploy the Kruize application.
         properties:
           apiVersion:
             description: |-
@@ -39,36 +42,23 @@ spec:
           spec:
             description: KruizeSpec defines the desired state of Kruize
             properties:
-              autotune_configmaps:
-                type: string
               autotune_image:
+                description: Container image for Kruize Autotune
                 type: string
               autotune_ui_image:
+                description: Container image for Kruize UI
                 type: string
               cluster_type:
+                description: Type of Kubernetes cluster (openshift, minikube, or kind)
                 type: string
               namespace:
+                description: Target namespace for Kruize deployment
                 type: string
-              non_interactive:
-                format: int32
-                type: integer
-              size:
-                description: Foo is an example field of Kruize. Edit kruize_types.go
-                  to remove/update
-                format: int32
-                type: integer
-              use_yaml_build:
-                format: int32
-                type: integer
             required:
-            - autotune_configmaps
             - autotune_image
             - autotune_ui_image
             - cluster_type
             - namespace
-            - non_interactive
-            - size
-            - use_yaml_build
             type: object
           status:
             description: KruizeStatus defines the observed state of Kruize

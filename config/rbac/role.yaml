@@ -33,7 +33,6 @@ rules:
   resources:
   - namespaces
   verbs:
-  - create
   - get
   - list
   - watch
@@ -102,7 +101,6 @@ rules:
   resources:
   - customresourcedefinitions
   verbs:
-  - create
   - get
   - list
   - watch
@@ -180,7 +178,6 @@ rules:
   resources:
   - jobs
   verbs:
-  - create
   - get
   - list
 - apiGroups:
@@ -188,7 +185,6 @@ rules:
   resources:
   - ingresses
   verbs:
-  - create
   - get
   - list
   - watch
@@ -205,7 +201,6 @@ rules:
   resources:
   - kruizes
   verbs:
-  - create
   - get
   - list
   - watch
@@ -244,22 +239,16 @@ rules:
   resources:
   - alertmanagers
   verbs:
-  - create
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - monitoring.coreos.com
   resources:
   - prometheuses
   verbs:
-  - create
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - monitoring.coreos.com
@@ -268,21 +257,7 @@ rules:
   verbs:
   - create
   - get
-  - list
-  - patch
   - update
-  - watch
-- apiGroups:
-  - monitoring.coreos.com
-  resources:
-  - prometheusrules
-  verbs:
-  - create
-  - get
-  - list
-  - patch
-  - update
-  - watch
 - apiGroups:
   - monitoring.coreos.com
   resources:
@@ -299,7 +274,6 @@ rules:
   resources:
   - ingresses
   verbs:
-  - create
   - get
   - list
   - watch
@@ -360,8 +334,6 @@ rules:
   resources:
   - securitycontextconstraints
   verbs:
-  - create
-  - get
   - use
 - apiGroups:
   - storage.k8s.io
