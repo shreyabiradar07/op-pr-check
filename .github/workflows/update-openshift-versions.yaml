@@ -1,0 +1,180 @@
+name: Update OpenShift Versions
+
+on:
+  schedule:
+    # Run weekly on Mondays at 10:00 UTC
+    - cron: '0 10 * * 1'
+  workflow_dispatch:
+    inputs:
+      min_version:
+        description: 'Minimum OpenShift version (e.g., v4.10)'
+        required: false
+        type: string
+      max_version:
+        description: 'Maximum OpenShift version (e.g., v4.20)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-openshift-versions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch latest OpenShift versions
+        id: fetch-versions
+        run: |
+          # Fetch OpenShift release information from Red Hat's Cincinnati API
+          
+          # For manual trigger with custom versions
+          if [ -n "${{ github.event.inputs.min_version }}" ] && [ -n "${{ github.event.inputs.max_version }}" ]; then
+            MIN_VERSION="${{ github.event.inputs.min_version }}"
+            MAX_VERSION="${{ github.event.inputs.max_version }}"
+            echo "Using manual versions: $MIN_VERSION to $MAX_VERSION"
+          else
+            echo "Fetching latest OpenShift versions from Cincinnati API..."
+          
+            # Get current versions from annotations.yaml
+            CURRENT_RANGE=$(grep "com.redhat.openshift.versions:" bundle/metadata/annotations.yaml | cut -d'"' -f2)
+            echo "Current range: $CURRENT_RANGE"
+          
+            # Extract current min and max
+            CURRENT_MIN=$(echo $CURRENT_RANGE | cut -d'-' -f1)
+            CURRENT_MAX=$(echo $CURRENT_RANGE | cut -d'-' -f2)
+          
+            # Query OpenShift Cincinnati API for stable channel releases
+            # Cincinnati is Red Hat's update service for OpenShift
+            CINCINNATI_URL="https://api.openshift.com/api/upgrades_info/v1/graph"
+          
+            # Fetch available versions from stable-4.x channel
+            echo "Querying Cincinnati API for available versions..."
+            VERSIONS=$(curl -sH 'Accept: application/json' "${CINCINNATI_URL}?channel=stable-4.16" | \
+              jq -r '.nodes[].version' | \
+              grep -E '^4\.[0-9]+\.[0-9]+$' | \
+              sort -V | \
+              uniq)
+          
+            if [ -z "$VERSIONS" ]; then
+              echo "Warning: Could not fetch versions from Cincinnati API, using fallback method"
+              # Fallback: increment current max by 1
+              MAX_NUM=$(echo $CURRENT_MAX | sed 's/v4\.//')
+              NEW_MAX_NUM=$((MAX_NUM + 1))
+              MIN_VERSION="$CURRENT_MIN"
+              MAX_VERSION="v4.$NEW_MAX_NUM"
+            else
+              echo "Available OpenShift versions:"
+              echo "$VERSIONS"
+          
+              # Extract minor versions (4.10, 4.11, etc.)
+              MINOR_VERSIONS=$(echo "$VERSIONS" | cut -d'.' -f1-2 | sort -V | uniq)
+              echo "Available minor versions:"
+              echo "$MINOR_VERSIONS"
+          
+              # Get the latest stable minor version
+              LATEST_MINOR=$(echo "$MINOR_VERSIONS" | tail -1)
+              echo "Latest minor version: $LATEST_MINOR"
+          
+              # Determine minimum supported version (keep current or use 3 versions back)
+              CURRENT_MIN_NUM=$(echo $CURRENT_MIN | sed 's/v4\.//')
+              LATEST_MIN_NUM=$(echo $LATEST_MINOR | sed 's/4\.//')
+          
+              # Support last 3 minor versions (e.g., if latest is 4.16, support 4.14-4.16)
+              MIN_NUM=$((LATEST_MIN_NUM - 2))
+              if [ $MIN_NUM -lt $CURRENT_MIN_NUM ]; then
+                MIN_NUM=$CURRENT_MIN_NUM
+              fi
+          
+              MIN_VERSION="v4.$MIN_NUM"
+              MAX_VERSION="v$LATEST_MINOR"
+            fi
+          fi
+          
+          echo "Determined version range: $MIN_VERSION-$MAX_VERSION"
+          echo "min_version=$MIN_VERSION" >> $GITHUB_OUTPUT
+          echo "max_version=$MAX_VERSION" >> $GITHUB_OUTPUT
+          echo "new_range=$MIN_VERSION-$MAX_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update annotations.yaml
+        id: update-file
+        run: |
+          NEW_RANGE="${{ steps.fetch-versions.outputs.new_range }}"
+          CURRENT_RANGE=$(grep "com.redhat.openshift.versions:" bundle/metadata/annotations.yaml | cut -d'"' -f2)
+          
+          if [ "$CURRENT_RANGE" = "$NEW_RANGE" ]; then
+            echo "No update needed. Current range is already: $CURRENT_RANGE"
+            echo "updated=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Update the file
+          sed -i "s/com.redhat.openshift.versions: \".*\"/com.redhat.openshift.versions: \"$NEW_RANGE\"/" bundle/metadata/annotations.yaml
+          
+          echo "Updated OpenShift versions from $CURRENT_RANGE to $NEW_RANGE"
+          echo "updated=true" >> $GITHUB_OUTPUT
+          echo "old_range=$CURRENT_RANGE" >> $GITHUB_OUTPUT
+
+      - name: Create Pull Request
+        if: steps.update-file.outputs.updated == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: |
+            chore(openshift): update supported versions to ${{ steps.fetch-versions.outputs.new_range }}
+            
+            Updates OpenShift version range in bundle/metadata/annotations.yaml
+            from ${{ steps.update-file.outputs.old_range }} to ${{ steps.fetch-versions.outputs.new_range }}
+          branch: update-openshift-versions
+          delete-branch: true
+          title: "chore(openshift): Update supported versions to ${{ steps.fetch-versions.outputs.new_range }}"
+          body: |
+            ## OpenShift Version Update
+            
+            This PR updates the supported OpenShift versions in the operator bundle metadata.
+            
+            ### Changes
+            - **Previous range**: `${{ steps.update-file.outputs.old_range }}`
+            - **New range**: `${{ steps.fetch-versions.outputs.new_range }}`
+            
+            ### Files Modified
+            - `bundle/metadata/annotations.yaml`
+            
+            ### Testing Checklist
+            - [ ] Verify the version range is correct
+            - [ ] Test operator deployment on minimum version (${{ steps.fetch-versions.outputs.min_version }})
+            - [ ] Test operator deployment on maximum version (${{ steps.fetch-versions.outputs.max_version }})
+            - [ ] Verify bundle validation passes
+            
+            ### Additional Notes
+            This PR was automatically generated by the OpenShift version update workflow.
+            Please review and test before merging.
+            
+            ---
+            *Generated by GitHub Actions workflow: `update-openshift-versions.yml`*
+          labels: |
+            dependencies
+            openshift
+            automated-pr
+          draft: false
+
+      - name: Summary
+        run: |
+          if [ "${{ steps.update-file.outputs.updated }}" = "true" ]; then
+            echo "✅ OpenShift versions updated successfully!"
+            echo "📝 Pull request created for review"
+            echo "🔄 Old range: ${{ steps.update-file.outputs.old_range }}"
+            echo "🆕 New range: ${{ steps.fetch-versions.outputs.new_range }}"
+          else
+            echo "ℹ️ No update needed - versions are already current"
+          fi
