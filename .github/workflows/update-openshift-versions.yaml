@@ -16,8 +16,8 @@ on:
         type: string
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  issues: write
 
 jobs:
   update-openshift-versions:
