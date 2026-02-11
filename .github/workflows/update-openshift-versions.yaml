@@ -58,83 +58,59 @@ jobs:
             # Cincinnati is Red Hat's update service for OpenShift
             CINCINNATI_URL="https://api.openshift.com/api/upgrades_info/v1/graph"
           
-            # Fetch list of all available stable channels
-            echo "Fetching available OpenShift channels..."
+            echo "Detecting latest OpenShift version..."
+          
+            # Fetch list of all available stable channels directly
             CHANNELS_URL="https://api.openshift.com/api/upgrades_info/v1/channels"
           
-            AVAILABLE_CHANNELS=$(curl -sH 'Accept: application/json' "${CHANNELS_URL}" 2>/dev/null | \
+            echo "Fetching available channels from Red Hat API..."
+            LATEST_CHANNEL=$(curl -s -f -H 'Accept: application/json' "${CHANNELS_URL}" 2>/dev/null | \
               jq -r '.channels[] | select(.name | startswith("stable-4.")) | .name' 2>/dev/null | \
-              sort -V || true)
+              sort -V | tail -1)
           
-            if [ -z "$AVAILABLE_CHANNELS" ]; then
-              echo "Warning: Could not fetch channels list, using fallback method"
-              # Fallback: try common recent versions
-              AVAILABLE_CHANNELS="stable-4.16 stable-4.17 stable-4.18 stable-4.19 stable-4.20 stable-4.21"
+            if [ -z "$LATEST_CHANNEL" ]; then
+              echo "ERROR: Could not fetch channels from Red Hat API"
+              exit 1
             fi
           
-            echo "Available stable channels:"
-            echo "$AVAILABLE_CHANNELS"
-          
-            # Get the latest channel
-            LATEST_CHANNEL=$(echo "$AVAILABLE_CHANNELS" | tail -1)
-            echo "Latest channel: $LATEST_CHANNEL"
-          
             # Extract the minor version number
-            LATEST_MINOR=$(echo $LATEST_CHANNEL | sed 's/stable-4\.//')
-            START_MINOR=$((LATEST_MINOR - 6))
+            LATEST_MINOR=$(echo "$LATEST_CHANNEL" | sed 's/stable-4\.//')
+            echo "✓ Latest stable channel: $LATEST_CHANNEL (4.$LATEST_MINOR)"
           
-            # Fetch available versions from recent channels (latest and 6 versions back)
-            echo "Querying Cincinnati API for available versions..."
+            # Calculate minimum version (6 versions back from latest)
+            MIN_MINOR=$((LATEST_MINOR - 5))
           
+            echo "Version range: v4.${MIN_MINOR} to v4.${LATEST_MINOR}"
+          
+            MIN_VERSION="v4.${MIN_MINOR}"
+            MAX_VERSION="v4.${LATEST_MINOR}"
+          
+            # Fetch all versions from the range for validation
+            echo "Fetching versions from stable channels..."
             ALL_VERSIONS=""
-            for MINOR in $(seq $LATEST_MINOR -1 $START_MINOR); do
+            for MINOR in $(seq $LATEST_MINOR -1 $MIN_MINOR); do
               CHANNEL="stable-4.${MINOR}"
-              echo "Fetching versions from channel: $CHANNEL"
+              echo "Checking channel: $CHANNEL"
           
-              CHANNEL_VERSIONS=$(curl -sH 'Accept: application/json' "${CINCINNATI_URL}?channel=${CHANNEL}" 2>/dev/null | \
-                jq -r '.nodes[].version' 2>/dev/null | \
-                grep -E '^4\.[0-9]+\.[0-9]+$' || true)
+              CHANNEL_VERSIONS=$(curl -s -f -H 'Accept: application/json' "${CINCINNATI_URL}?channel=${CHANNEL}" 2>/dev/null | \
+                jq -r '.nodes[]?.version' 2>/dev/null | \
+                grep -E '^4\.[0-9]+\.[0-9]+$' 2>/dev/null || true)
           
               if [ -n "$CHANNEL_VERSIONS" ]; then
                 ALL_VERSIONS="${ALL_VERSIONS}${CHANNEL_VERSIONS}"$'\n'
               fi
             done
           
-            # Remove duplicates and sort
-            VERSIONS=$(echo "$ALL_VERSIONS" | grep -E '^4\.[0-9]+\.[0-9]+$' | sort -V | uniq)
+            # Display detected versions
+            VERSIONS=$(echo "$ALL_VERSIONS" | grep -E '^4\.[0-9]+\.[0-9]+$' | sort -uV)
           
-            if [ -z "$VERSIONS" ]; then
-              echo "Warning: Could not fetch versions from Cincinnati API, using fallback method"
-              # Fallback: increment current max by 1
-              MAX_NUM=$(echo $CURRENT_MAX | sed 's/v4\.//')
-              NEW_MAX_NUM=$((MAX_NUM + 1))
-              MIN_VERSION="$CURRENT_MIN"
-              MAX_VERSION="v4.$NEW_MAX_NUM"
+            if [ -n "$VERSIONS" ]; then
+              echo "Available OpenShift versions detected:"
+              echo "$VERSIONS" | head -10
+              echo "..."
+              echo "Total versions found: $(echo "$VERSIONS" | wc -l)"
             else
-              echo "Available OpenShift versions:"
-              echo "$VERSIONS"
-          
-              # Extract minor versions (4.10, 4.11, etc.)
-              MINOR_VERSIONS=$(echo "$VERSIONS" | cut -d'.' -f1-2 | sort -V | uniq)
-              echo "Available minor versions:"
-              echo "$MINOR_VERSIONS"
-          
-              # Get the latest stable minor version
-              LATEST_MINOR=$(echo "$MINOR_VERSIONS" | tail -1)
-              echo "Latest minor version: $LATEST_MINOR"
-          
-              # Determine minimum supported version (keep current or use 3 versions back)
-              CURRENT_MIN_NUM=$(echo $CURRENT_MIN | sed 's/v4\.//')
-              LATEST_MIN_NUM=$(echo $LATEST_MINOR | sed 's/4\.//')
-          
-              # Support last 3 minor versions (e.g., if latest is 4.16, support 4.14-4.16)
-              MIN_NUM=$((LATEST_MIN_NUM - 2))
-              if [ $MIN_NUM -lt $CURRENT_MIN_NUM ]; then
-                MIN_NUM=$CURRENT_MIN_NUM
-              fi
-          
-              MIN_VERSION="v4.$MIN_NUM"
-              MAX_VERSION="v$LATEST_MINOR"
+              echo "Warning: No versions detected from Cincinnati API"
             fi
           fi
           
