@@ -29,7 +29,7 @@ jobs:
         id: fetch-autotune-version
         run: |
           # Fetch the pom.xml from kruize/autotune master branch
-          KRUIZE_VERSION=$(curl -s https://raw.githubusercontent.com/kruize/autotune/master/pom.xml | grep -oP '<version>\K[^<]+' | head -1)
+          KRUIZE_VERSION=$(curl -s https://raw.githubusercontent.com/shreyabiradar07/autotune/master/pom.xml | grep -oP '<version>\K[^<]+' | head -1)
           
           if [ -z "$KRUIZE_VERSION" ]; then
             echo "Failed to fetch Kruize Autotune version from pom.xml"
@@ -59,7 +59,7 @@ jobs:
           KRUIZE_VERSION="${{ steps.fetch-autotune-version.outputs.kruize_version }}"
           
           # Check if the image tag exists on quay.io
-          IMAGE_URL="https://quay.io/api/v1/repository/kruize/autotune_operator/tag/?specificTag=${KRUIZE_VERSION}"
+          IMAGE_URL="https://quay.io/api/v1/repository/shbirada/autotune_operator/tag/?specificTag=${KRUIZE_VERSION}"
           
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$IMAGE_URL")
           
