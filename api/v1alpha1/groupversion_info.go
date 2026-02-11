@@ -16,11 +16,7 @@ limitations under the License.
 
 // Package v1alpha1 contains API Schema definitions for the  v1alpha1 API group
 // +kubebuilder:object:generate=true
-<<<<<<< HEAD
 // +groupName=kruize.io
-=======
-// +groupName=my.domain
->>>>>>> 6728aac (Add base operator)
 package v1alpha1
 
 import (
@@ -30,12 +26,7 @@ import (
 
 var (
 	// GroupVersion is group version used to register these objects
-<<<<<<< HEAD
 	GroupVersion = schema.GroupVersion{Group: "kruize.io", Version: "v1alpha1"}
-=======
-	GroupVersion = schema.GroupVersion{Group: "my.domain", Version: "v1alpha1"}
->>>>>>> 6728aac (Add base operator)
-
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 
