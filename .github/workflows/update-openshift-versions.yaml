@@ -85,8 +85,8 @@ jobs:
               exit 0
             fi
           
-            # Calculate minimum version (6 versions back from latest)
-            MIN_MINOR=$((LATEST_MINOR - 5))
+            # Calculate minimum version (9 versions back from latest, as supported by OperatorHub)
+            MIN_MINOR=$((LATEST_MINOR - 8))
           
             echo "Version range: v${MAJOR_VERSION}.${MIN_MINOR} to v${MAJOR_VERSION}.${LATEST_MINOR}"
           
