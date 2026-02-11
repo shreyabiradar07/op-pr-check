@@ -60,22 +60,36 @@ jobs:
           
             echo "Detecting latest OpenShift version..."
           
-            # Fetch list of all available stable channels directly
-            CHANNELS_URL="https://api.openshift.com/api/upgrades_info/v1/channels"
+            # Method 1: Try to fetch from Red Hat's mirror list (most reliable)
+            echo "Attempting to fetch from Red Hat mirror..."
+            LATEST_MINOR=$(curl -s "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/" 2>/dev/null | \
+              grep -oP 'stable-4\.\d+' | \
+              sed 's/stable-4\.//' | \
+              sort -n | \
+              tail -1)
           
-            echo "Fetching available channels from Red Hat API..."
-            LATEST_CHANNEL=$(curl -s -f -H 'Accept: application/json' "${CHANNELS_URL}" 2>/dev/null | \
-              jq -r '.channels[] | select(.name | startswith("stable-4.")) | .name' 2>/dev/null | \
-              sort -V | tail -1)
-          
-            if [ -z "$LATEST_CHANNEL" ]; then
-              echo "ERROR: Could not fetch channels from Red Hat API"
-              exit 1
+            if [ -n "$LATEST_MINOR" ]; then
+              echo "✓ Latest version from mirror: 4.${LATEST_MINOR}"
+            else
+              # Method 2: Try Cincinnati API with a high version and work backwards
+              echo "Mirror method failed, trying Cincinnati API..."
+              for MINOR in 25 24 23 22 21 20 19 18 17 16; do
+                if curl -s -f "${CINCINNATI_URL}?channel=stable-4.${MINOR}" 2>/dev/null | jq -e '.nodes[0]' >/dev/null 2>&1; then
+                  LATEST_MINOR=$MINOR
+                  echo "✓ Latest version from Cincinnati: 4.${LATEST_MINOR}"
+                  break
+                fi
+              done
             fi
           
-            # Extract the minor version number
-            LATEST_MINOR=$(echo "$LATEST_CHANNEL" | sed 's/stable-4\.//')
-            echo "✓ Latest stable channel: $LATEST_CHANNEL (4.$LATEST_MINOR)"
+            if [ -z "$LATEST_MINOR" ]; then
+              echo "ERROR: Could not detect latest OpenShift version from any source"
+              echo "Skipping update check - no changes will be made"
+              echo "min_version=" >> $GITHUB_OUTPUT
+              echo "max_version=" >> $GITHUB_OUTPUT
+              echo "new_range=" >> $GITHUB_OUTPUT
+              exit 0
+            fi
           
             # Calculate minimum version (6 versions back from latest)
             MIN_MINOR=$((LATEST_MINOR - 5))
