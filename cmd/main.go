@@ -34,16 +34,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-<<<<<<< HEAD
 	kruizev1alpha1 "github.com/kruize/kruize-operator/api/v1alpha1"
-=======
-	mydomainv1alpha1 "github.com/kruize/kruize-operator/api/v1alpha1"
->>>>>>> 6728aac (Add base operator)
-	"github.com/kruize/kruize-operator/internal/controller"
-	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
-	//+kubebuilder:scaffold:imports
-	routev1 "github.com/openshift/api/route/v1"
-)
 
 var (
 	scheme   = runtime.NewScheme()

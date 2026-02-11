@@ -2,8 +2,8 @@ name: Update OpenShift Versions
 
 on:
   schedule:
-    # Run weekly on Mondays at 10:00 UTC
-    - cron: '0 10 * * 1'
+    # Run daily at 06:30 UTC (12:00 PM IST)
+    - cron: '30 6 * * *'
   workflow_dispatch:
     inputs:
       min_version:
