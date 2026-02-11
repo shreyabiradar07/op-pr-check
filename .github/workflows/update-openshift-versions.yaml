@@ -2,8 +2,8 @@ name: Update OpenShift Versions
 
 on:
   schedule:
-    # Run daily at 07:15 UTC (12:45 PM IST)
-    - cron: '15 7 * * *'
+    # Run weekly on Monday at 03:30 UTC (9:00 AM IST)
+    - cron: '30 3 * * 1'
   workflow_dispatch:
     inputs:
       min_version:
@@ -58,13 +58,50 @@ jobs:
             # Cincinnati is Red Hat's update service for OpenShift
             CINCINNATI_URL="https://api.openshift.com/api/upgrades_info/v1/graph"
           
-            # Fetch available versions from stable-4.x channel
+            # Fetch list of all available stable channels
+            echo "Fetching available OpenShift channels..."
+            CHANNELS_URL="https://api.openshift.com/api/upgrades_info/v1/channels"
+          
+            AVAILABLE_CHANNELS=$(curl -sH 'Accept: application/json' "${CHANNELS_URL}" 2>/dev/null | \
+              jq -r '.channels[] | select(.name | startswith("stable-4.")) | .name' 2>/dev/null | \
+              sort -V || true)
+          
+            if [ -z "$AVAILABLE_CHANNELS" ]; then
+              echo "Warning: Could not fetch channels list, using fallback method"
+              # Fallback: try common recent versions
+              AVAILABLE_CHANNELS="stable-4.16 stable-4.17 stable-4.18 stable-4.19 stable-4.20 stable-4.21"
+            fi
+          
+            echo "Available stable channels:"
+            echo "$AVAILABLE_CHANNELS"
+          
+            # Get the latest channel
+            LATEST_CHANNEL=$(echo "$AVAILABLE_CHANNELS" | tail -1)
+            echo "Latest channel: $LATEST_CHANNEL"
+          
+            # Extract the minor version number
+            LATEST_MINOR=$(echo $LATEST_CHANNEL | sed 's/stable-4\.//')
+            START_MINOR=$((LATEST_MINOR - 6))
+          
+            # Fetch available versions from recent channels (latest and 6 versions back)
             echo "Querying Cincinnati API for available versions..."
-            VERSIONS=$(curl -sH 'Accept: application/json' "${CINCINNATI_URL}?channel=stable-4.16" | \
-              jq -r '.nodes[].version' | \
-              grep -E '^4\.[0-9]+\.[0-9]+$' | \
-              sort -V | \
-              uniq)
+          
+            ALL_VERSIONS=""
+            for MINOR in $(seq $LATEST_MINOR -1 $START_MINOR); do
+              CHANNEL="stable-4.${MINOR}"
+              echo "Fetching versions from channel: $CHANNEL"
+          
+              CHANNEL_VERSIONS=$(curl -sH 'Accept: application/json' "${CINCINNATI_URL}?channel=${CHANNEL}" 2>/dev/null | \
+                jq -r '.nodes[].version' 2>/dev/null | \
+                grep -E '^4\.[0-9]+\.[0-9]+$' || true)
+          
+              if [ -n "$CHANNEL_VERSIONS" ]; then
+                ALL_VERSIONS="${ALL_VERSIONS}${CHANNEL_VERSIONS}"$'\n'
+              fi
+            done
+          
+            # Remove duplicates and sort
+            VERSIONS=$(echo "$ALL_VERSIONS" | grep -E '^4\.[0-9]+\.[0-9]+$' | sort -V | uniq)
           
             if [ -z "$VERSIONS" ]; then
               echo "Warning: Could not fetch versions from Cincinnati API, using fallback method"
