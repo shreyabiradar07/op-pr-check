@@ -9,6 +9,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 jobs:
   check-and-update:
@@ -17,8 +18,9 @@ jobs:
       - name: Checkout kruize-operator repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}
           fetch-depth: 0
+          persist-credentials: true
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -180,44 +182,20 @@ jobs:
         if: steps.update-check.outputs.needs_update == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}
           commit-message: "chore: update Kruize versions (Autotune: ${{ steps.fetch-autotune-version.outputs.kruize_version }}, UI: ${{ steps.fetch-ui-version.outputs.ui_version }})"
           title: "chore: update Kruize image versions"
+          committer: GitHub Actions <actions@github.com>
+          author: GitHub Actions <actions@github.com>
           body: |
             ## Automated Version Update
             
-            This PR automatically updates Kruize image versions based on changes detected in the upstream repositories.
+            Updates Kruize image versions from upstream repositories.
             
-            ### Changes
+            **Autotune**: ${{ steps.current-versions.outputs.current_autotune_version }} → ${{ steps.fetch-autotune-version.outputs.kruize_version }}
+            **UI**: ${{ steps.current-versions.outputs.current_ui_version }} → ${{ steps.fetch-ui-version.outputs.ui_version }}
             
-            ${{ steps.update-check.outputs.needs_autotune_update == 'true' && format('#### Kruize Autotune
-            - Updated `defaultAutotuneImageTag` in `internal/constants/kruize_images.go` from `{0}` to `{1}`
-            - Updated `autotune_image` in `config/samples/v1alpha1_kruize.yaml` to `quay.io/kruize/autotune_operator:{1}`
-            - Image verified to be available on quay.io: `quay.io/kruize/autotune_operator:{1}`
-            
-            **Source:** [kruize/autotune pom.xml](https://github.com/kruize/autotune/blob/master/pom.xml)
-            
-            ', steps.current-versions.outputs.current_autotune_version, steps.fetch-autotune-version.outputs.kruize_version) || '' }}
-            
-            ${{ steps.update-check.outputs.needs_ui_update == 'true' && format('#### Kruize UI
-            - Updated `defaultUIImageTag` in `internal/constants/kruize_images.go` from `{0}` to `{1}`
-            - Updated `autotune_ui_image` in `config/samples/v1alpha1_kruize.yaml` to `quay.io/kruize/kruize-ui:{1}`
-            - Image verified to be available on quay.io: `quay.io/kruize/kruize-ui:{1}`
-            
-            **Source:** [kruize/kruize-ui package.json](https://github.com/kruize/kruize-ui/blob/main/package.json)
-            
-            ', steps.current-versions.outputs.current_ui_version, steps.fetch-ui-version.outputs.ui_version) || '' }}
-            
-            ### Verification
-            - [x] Versions extracted from source repositories
-            - [x] Image tags verified on quay.io
-            - [x] Tests passed
-            
-            ### Image Registries
-            - Autotune: https://quay.io/repository/kruize/autotune_operator
-            - UI: https://quay.io/repository/kruize/kruize-ui
-            
-            **Note:** This is an automated PR. Please review the changes and merge if appropriate.
+            - Images verified on quay.io ✓
           branch: automated/update-kruize-versions-${{ github.run_number }}
           delete-branch: true
           labels: |
