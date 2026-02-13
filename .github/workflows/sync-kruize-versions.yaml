@@ -15,10 +15,17 @@ jobs:
   check-and-update:
     runs-on: ubuntu-latest
     steps:
+      - name: Generate token from GitHub App
+        id: generate-token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          private_key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Checkout kruize-operator repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.PAT_TOKEN }}
+          token: ${{ steps.generate-token.outputs.token }}
           fetch-depth: 0
           persist-credentials: true
 
@@ -182,7 +189,7 @@ jobs:
         if: steps.update-check.outputs.needs_update == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.PAT_TOKEN }}
+          token: ${{ steps.generate-token.outputs.token }}
           commit-message: "chore: update Kruize versions (Autotune: ${{ steps.fetch-autotune-version.outputs.kruize_version }}, UI: ${{ steps.fetch-ui-version.outputs.ui_version }})"
           title: "chore: update Kruize image versions"
           committer: GitHub Actions <actions@github.com>
