@@ -2,8 +2,8 @@ name: Sync Kruize Versions
 
 on:
   schedule:
-    # Run daily at 00:00 UTC
-    - cron: '0 0 * * *'
+    # Run weekly on Monday at 00:00 UTC
+    - cron: '0 0 * * 1'
   workflow_dispatch: # Allow manual trigger
 
 permissions:
@@ -27,16 +27,6 @@ jobs:
           token: ${{ steps.generate-token.outputs.token }}
           fetch-depth: 0
           persist-credentials: true
-
-      - name: Import GPG key
-        uses: crazy-max/ghaction-import-gpg@v6
-        with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          git_user_signingkey: true
-          git_commit_gpgsign: true
-          git_config_global: true
-          git_committer_name: kruize-version-sync-bot
-          git_committer_email: ${{ secrets.APP_ID }}+kruize-version-sync-bot@users.noreply.github.com
 
       - name: Install required tools
         run: |
