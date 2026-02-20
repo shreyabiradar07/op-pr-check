@@ -41,6 +41,8 @@ jobs:
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
           git_user_signingkey: true
           git_commit_gpgsign: true
+          git_config_global: true
+          git_tag_gpgsign: true
 
       - name: Install required tools
         run: |
@@ -195,6 +197,14 @@ jobs:
             sed -i "s|autotune_ui_image: \"quay.io/kruize/kruize-ui:[^\"]*\"|autotune_ui_image: \"quay.io/kruize/kruize-ui:$UI_VERSION\"|" config/samples/v1alpha1_kruize.yaml
             echo "Updated UI version to $UI_VERSION"
           fi
+
+      - name: Configure Git for GPG signing
+        if: steps.update-check.outputs.needs_update == 'true'
+        run: |
+          git config --global user.name "${{ steps.import-gpg.outputs.name }}"
+          git config --global user.email "${{ steps.import-gpg.outputs.email }}"
+          git config --global commit.gpgsign true
+          git config --global user.signingkey "${{ steps.import-gpg.outputs.keyid }}"
 
       - name: Create Pull Request
         if: steps.update-check.outputs.needs_update == 'true'
