@@ -33,6 +33,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
+      - name: Configure Git for GitHub App
+        run: |
+          git config --global user.name "kruize-version-sync-bot"
+          git config --global user.email "2856490+kruize-version-sync-bot@users.noreply.github.com"
+
       - name: Import GPG key
         id: import-gpg
         uses: crazy-max/ghaction-import-gpg@v6
@@ -198,22 +203,14 @@ jobs:
             echo "Updated UI version to $UI_VERSION"
           fi
 
-      - name: Configure Git for GPG signing
-        if: steps.update-check.outputs.needs_update == 'true'
-        run: |
-          git config --global user.name "${{ steps.import-gpg.outputs.name }}"
-          git config --global user.email "${{ steps.import-gpg.outputs.email }}"
-          git config --global commit.gpgsign true
-          git config --global user.signingkey "${{ steps.import-gpg.outputs.keyid }}"
-
       - name: Create Pull Request
         if: steps.update-check.outputs.needs_update == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ steps.generate-token.outputs.token }}
           commit-message: "build(deps): update Kruize versions to Autotune ${{ steps.fetch-autotune-version.outputs.kruize_version }} and UI ${{ steps.fetch-ui-version.outputs.ui_version }}"
-          committer: ${{ steps.import-gpg.outputs.name }} <${{ steps.import-gpg.outputs.email }}>
-          author: ${{ steps.import-gpg.outputs.name }} <${{ steps.import-gpg.outputs.email }}>
+          committer: kruize-version-sync-bot <2856490+kruize-version-sync-bot@users.noreply.github.com>
+          author: kruize-version-sync-bot <2856490+kruize-version-sync-bot@users.noreply.github.com>
           signoff: true
           title: "build(deps): update Kruize image versions"
           body: |
