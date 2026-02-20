@@ -1,9 +1,14 @@
 name: Sync Kruize Versions
 
 on:
+  push:
+    branches:
+      - mvp_demo
+    paths:
+      - '.github/workflows/sync-kruize-versions.yml'
   schedule:
-    # Run daily at 00:00 UTC
-    - cron: '0 0 * * *'
+    # Run weekly on Monday at 00:00 UTC
+    - cron: '0 0 * * 1'
   workflow_dispatch: # Allow manual trigger
 
 permissions:
@@ -27,6 +32,15 @@ jobs:
           token: ${{ steps.generate-token.outputs.token }}
           fetch-depth: 0
           persist-credentials: true
+
+      - name: Import GPG key
+        id: import-gpg
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
 
       - name: Install required tools
         run: |
@@ -188,6 +202,9 @@ jobs:
         with:
           token: ${{ steps.generate-token.outputs.token }}
           commit-message: "build(deps): update Kruize versions to Autotune ${{ steps.fetch-autotune-version.outputs.kruize_version }} and UI ${{ steps.fetch-ui-version.outputs.ui_version }}"
+          committer: ${{ steps.import-gpg.outputs.name }} <${{ steps.import-gpg.outputs.email }}>
+          author: ${{ steps.import-gpg.outputs.name }} <${{ steps.import-gpg.outputs.email }}>
+          signoff: true
           title: "build(deps): update Kruize image versions"
           body: |
             ## Automated Version Update
