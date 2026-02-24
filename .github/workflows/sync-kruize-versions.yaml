@@ -33,11 +33,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Configure Git for GitHub App
-        run: |
-          git config --global user.name "kruize-version-sync-bot"
-          git config --global user.email "2856490+kruize-version-sync-bot@users.noreply.github.com"
-
       - name: Import GPG key
         id: import-gpg
         uses: crazy-max/ghaction-import-gpg@v6
@@ -46,8 +41,6 @@ jobs:
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
           git_user_signingkey: true
           git_commit_gpgsign: true
-          git_config_global: true
-          git_tag_gpgsign: true
 
       - name: Install required tools
         run: |
@@ -209,8 +202,8 @@ jobs:
         with:
           token: ${{ steps.generate-token.outputs.token }}
           commit-message: "build(deps): update Kruize versions to Autotune ${{ steps.fetch-autotune-version.outputs.kruize_version }} and UI ${{ steps.fetch-ui-version.outputs.ui_version }}"
-          committer: kruize-version-sync-bot <2856490+kruize-version-sync-bot@users.noreply.github.com>
-          author: kruize-version-sync-bot <2856490+kruize-version-sync-bot@users.noreply.github.com>
+          committer: Shreya Biradar <shbirada@ibm.com>
+          author: kruize-version-sync-bot
           signoff: true
           title: "build(deps): update Kruize image versions"
           body: |
