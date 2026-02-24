@@ -260,10 +260,13 @@ jobs:
           # Create commit with signoff
           COMMIT_MESSAGE="build(deps): update Kruize versions to Autotune ${{ steps.fetch-autotune-version.outputs.kruize_version }} and UI ${{ steps.fetch-ui-version.outputs.ui_version }}"
           
-          # Get committer info from the GitHub App token
+          # Get GitHub App info
+          APP_ID="${{ secrets.APP_ID }}"
           USER_INFO=$(curl -s -H "Authorization: token $GH_TOKEN" "https://api.github.com/user")
-          COMMITTER_NAME=$(echo "$USER_INFO" | jq -r '.name // .login')
-          COMMITTER_EMAIL=$(echo "$USER_INFO" | jq -r '.email // (.login + "@users.noreply.github.com")')
+          COMMITTER_NAME=$(echo "$USER_INFO" | jq -r '.login')
+          
+          # Construct email as app_id+name@users.noreply.github.com
+          COMMITTER_EMAIL="${APP_ID}+${COMMITTER_NAME}@users.noreply.github.com"
           
           # Append Signed-off-by line to commit message
           SIGNOFF_LINE="Signed-off-by: ${COMMITTER_NAME} <${COMMITTER_EMAIL}>"
