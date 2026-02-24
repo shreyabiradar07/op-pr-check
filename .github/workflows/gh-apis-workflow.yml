@@ -260,7 +260,8 @@ jobs:
             -d "{
               \"message\":\"$COMMIT_MESSAGE\",
               \"tree\":\"$NEW_TREE\",
-              \"parents\":[\"$BASE_SHA\"]
+              \"parents\":[\"$BASE_SHA\"],
+              \"signoff\":true
             }" | jq -r '.sha')
           
           # Update branch reference
