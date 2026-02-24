@@ -44,6 +44,12 @@ jobs:
           git_config_global: true
           git_tag_gpgsign: true
 
+      - name: Configure Git user (must match GPG key identity)
+        run: |
+          # These values MUST match the name and email in your GPG key
+          git config --global user.name "Shreya Biradar"
+          git config --global user.email "shbirada@ibm.com"
+
       - name: Install required tools
         run: |
           sudo apt-get update -y
