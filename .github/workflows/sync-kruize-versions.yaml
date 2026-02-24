@@ -44,7 +44,7 @@ jobs:
         run: |
           # Set Git user identity
           git config --global user.name "Shreya Biradar"
-          git config --global user.email "shbirada@ibm.com
+          git config --global user.email "shbirada@ibm.com"
           
           # Configure GPG signing manually
           git config --global user.signingkey ${{ steps.import-gpg.outputs.keyid }}
