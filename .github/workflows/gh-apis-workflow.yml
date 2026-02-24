@@ -195,21 +195,27 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.generate-token.outputs.token }}
         run: |
-          BRANCH_NAME="automated/update-kruize-versions-${{ github.run_number }}"
           REPO="${{ github.repository }}"
           BASE_BRANCH="${{ github.ref_name }}"
-          
+          BRANCH_NAME="automated/gh-api-update-kruize-${{ github.run_number }}"
+
           # Get the SHA of the base branch
           BASE_SHA=$(curl -s -H "Authorization: token $GH_TOKEN" \
             "https://api.github.com/repos/$REPO/git/ref/heads/$BASE_BRANCH" | jq -r '.object.sha')
           
-          echo "Base SHA: $BASE_SHA"
-          
           # Create a new branch
-          curl -s -X POST -H "Authorization: token $GH_TOKEN" \
+          CREATE_RESPONSE=$(curl -s -X POST -H "Authorization: token $GH_TOKEN" \
             -H "Content-Type: application/json" \
             "https://api.github.com/repos/$REPO/git/refs" \
-            -d "{\"ref\":\"refs/heads/$BRANCH_NAME\",\"sha\":\"$BASE_SHA\"}"
+            -d "{\"ref\":\"refs/heads/$BRANCH_NAME\",\"sha\":\"$BASE_SHA\"}")
+          
+          # Verify branch was created
+          BRANCH_SHA=$(echo "$CREATE_RESPONSE" | jq -r '.object.sha // empty')
+          if [ -z "$BRANCH_SHA" ]; then
+            echo "Error: Failed to create branch"
+            echo "$CREATE_RESPONSE"
+            exit 1
+          fi
           
           echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
           echo "base_sha=$BASE_SHA" >> $GITHUB_OUTPUT
@@ -264,7 +270,7 @@ jobs:
           COMMIT_MESSAGE_WITH_SIGNOFF=$(printf "%s\n\n%s" "$COMMIT_MESSAGE" "$SIGNOFF_LINE")
           
           # Create commit with author and committer info
-          NEW_COMMIT=$(curl -s -X POST -H "Authorization: token $GH_TOKEN" \
+          COMMIT_RESPONSE=$(curl -s -X POST -H "Authorization: token $GH_TOKEN" \
             -H "Content-Type: application/json" \
             "https://api.github.com/repos/$REPO/git/commits" \
             -d "$(jq -n \
@@ -279,7 +285,15 @@ jobs:
                 parents: [$parent],
                 author: {name: $name, email: $email},
                 committer: {name: $name, email: $email}
-              }')" | jq -r '.sha')
+              }')")
+          
+          NEW_COMMIT=$(echo "$COMMIT_RESPONSE" | jq -r '.sha')
+          
+          if [ "$NEW_COMMIT" = "null" ] || [ -z "$NEW_COMMIT" ]; then
+            echo "Error: Failed to create commit"
+            echo "$COMMIT_RESPONSE"
+            exit 1
+          fi
           
           # Update branch reference
           curl -s -X PATCH -H "Authorization: token $GH_TOKEN" \
