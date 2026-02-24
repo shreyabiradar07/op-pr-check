@@ -260,9 +260,9 @@ jobs:
           # Create commit with signoff
           COMMIT_MESSAGE="build(deps): update Kruize versions to Autotune ${{ steps.fetch-autotune-version.outputs.kruize_version }} and UI ${{ steps.fetch-ui-version.outputs.ui_version }}"
           
-          # Use GitHub App name from secrets
+          # Use GitHub App info
           APP_ID="${{ secrets.APP_ID }}"
-          COMMITTER_NAME="${{ secrets.APP_NAME }}"
+          COMMITTER_NAME="kruize-version-sync-bot"
           
           # Construct email as app_id+name@users.noreply.github.com
           COMMITTER_EMAIL="${APP_ID}+${COMMITTER_NAME}@users.noreply.github.com"
