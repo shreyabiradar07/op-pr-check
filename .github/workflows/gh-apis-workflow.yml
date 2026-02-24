@@ -220,7 +220,7 @@ jobs:
           echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
           echo "base_sha=$BASE_SHA" >> $GITHUB_OUTPUT
 
-      - name: Commit changes using GitHub API
+      - name: Commit changes using Contents API for verified commits
         if: steps.update-check.outputs.needs_update == 'true'
         id: commit-changes
         env:
@@ -228,80 +228,64 @@ jobs:
         run: |
           REPO="${{ github.repository }}"
           BRANCH_NAME="${{ steps.create-branch.outputs.branch_name }}"
-          BASE_SHA="${{ steps.create-branch.outputs.base_sha }}"
           
-          # Get the base tree SHA
-          BASE_TREE_SHA=$(curl -s -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/$REPO/git/commits/$BASE_SHA" | jq -r '.tree.sha')
-          
-          # Create blobs for updated files
-          KRUIZE_IMAGES_BLOB=$(curl -s -X POST -H "Authorization: token $GH_TOKEN" \
-            -H "Content-Type: application/json" \
-            "https://api.github.com/repos/$REPO/git/blobs" \
-            -d "{\"content\":\"${{ steps.update-files.outputs.kruize_images_content }}\",\"encoding\":\"base64\"}" | jq -r '.sha')
-          
-          SAMPLE_YAML_BLOB=$(curl -s -X POST -H "Authorization: token $GH_TOKEN" \
-            -H "Content-Type: application/json" \
-            "https://api.github.com/repos/$REPO/git/blobs" \
-            -d "{\"content\":\"${{ steps.update-files.outputs.sample_yaml_content }}\",\"encoding\":\"base64\"}" | jq -r '.sha')
-          
-          # Create a new tree with updated files
-          NEW_TREE=$(curl -s -X POST -H "Authorization: token $GH_TOKEN" \
-            -H "Content-Type: application/json" \
-            "https://api.github.com/repos/$REPO/git/trees" \
-            -d "{
-              \"base_tree\":\"$BASE_TREE_SHA\",
-              \"tree\":[
-                {\"path\":\"internal/constants/kruize_images.go\",\"mode\":\"100644\",\"type\":\"blob\",\"sha\":\"$KRUIZE_IMAGES_BLOB\"},
-                {\"path\":\"config/samples/v1alpha1_kruize.yaml\",\"mode\":\"100644\",\"type\":\"blob\",\"sha\":\"$SAMPLE_YAML_BLOB\"}
-              ]
-            }" | jq -r '.sha')
-          
-          # Create commit with signoff
+          # Create commit message with signoff
           COMMIT_MESSAGE="build(deps): update Kruize versions to Autotune ${{ steps.fetch-autotune-version.outputs.kruize_version }} and UI ${{ steps.fetch-ui-version.outputs.ui_version }}"
           
-          # Use GitHub App info with [bot] suffix for proper attribution
           APP_ID="${{ secrets.APP_ID }}"
           COMMITTER_NAME="kruize-version-sync-bot[bot]"
           COMMITTER_EMAIL="${APP_ID}+kruize-version-sync-bot[bot]@users.noreply.github.com"
           
-          # Append Signed-off-by line to commit message
           SIGNOFF_LINE="Signed-off-by: ${COMMITTER_NAME} <${COMMITTER_EMAIL}>"
           COMMIT_MESSAGE_WITH_SIGNOFF=$(printf "%s\n\n%s" "$COMMIT_MESSAGE" "$SIGNOFF_LINE")
           
-          # Create commit with author and committer info
-          COMMIT_RESPONSE=$(curl -s -X POST -H "Authorization: token $GH_TOKEN" \
+          # Get current SHA of kruize_images.go
+          KRUIZE_IMAGES_SHA=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/$REPO/contents/internal/constants/kruize_images.go?ref=$BRANCH_NAME" | jq -r '.sha')
+          
+          # Update kruize_images.go using Contents API (creates verified commit)
+          curl -s -X PUT -H "Authorization: token $GH_TOKEN" \
             -H "Content-Type: application/json" \
-            "https://api.github.com/repos/$REPO/git/commits" \
+            "https://api.github.com/repos/$REPO/contents/internal/constants/kruize_images.go" \
             -d "$(jq -n \
               --arg msg "$COMMIT_MESSAGE_WITH_SIGNOFF" \
-              --arg tree "$NEW_TREE" \
-              --arg parent "$BASE_SHA" \
+              --arg content "${{ steps.update-files.outputs.kruize_images_content }}" \
+              --arg branch "$BRANCH_NAME" \
+              --arg sha "$KRUIZE_IMAGES_SHA" \
               --arg name "$COMMITTER_NAME" \
               --arg email "$COMMITTER_EMAIL" \
               '{
                 message: $msg,
-                tree: $tree,
-                parents: [$parent],
-                author: {name: $name, email: $email},
-                committer: {name: $name, email: $email}
-              }')")
+                content: $content,
+                branch: $branch,
+                sha: $sha,
+                committer: {name: $name, email: $email},
+                author: {name: $name, email: $email}
+              }')"
           
-          NEW_COMMIT=$(echo "$COMMIT_RESPONSE" | jq -r '.sha')
+          # Get current SHA of v1alpha1_kruize.yaml
+          SAMPLE_YAML_SHA=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/$REPO/contents/config/samples/v1alpha1_kruize.yaml?ref=$BRANCH_NAME" | jq -r '.sha')
           
-          if [ "$NEW_COMMIT" = "null" ] || [ -z "$NEW_COMMIT" ]; then
-            echo "Error: Failed to create commit"
-            echo "$COMMIT_RESPONSE"
-            exit 1
-          fi
-          
-          # Update branch reference
-          curl -s -X PATCH -H "Authorization: token $GH_TOKEN" \
+          # Update v1alpha1_kruize.yaml using Contents API (creates verified commit)
+          curl -s -X PUT -H "Authorization: token $GH_TOKEN" \
             -H "Content-Type: application/json" \
-            "https://api.github.com/repos/$REPO/git/refs/heads/$BRANCH_NAME" \
-            -d "{\"sha\":\"$NEW_COMMIT\",\"force\":false}"
-          
-          echo "commit_sha=$NEW_COMMIT" >> $GITHUB_OUTPUT
+            "https://api.github.com/repos/$REPO/contents/config/samples/v1alpha1_kruize.yaml" \
+            -d "$(jq -n \
+              --arg msg "$COMMIT_MESSAGE_WITH_SIGNOFF" \
+              --arg content "${{ steps.update-files.outputs.sample_yaml_content }}" \
+              --arg branch "$BRANCH_NAME" \
+              --arg sha "$SAMPLE_YAML_SHA" \
+              --arg name "$COMMITTER_NAME" \
+              --arg email "$COMMITTER_EMAIL" \
+              '{
+                message: $msg,
+                content: $content,
+                branch: $branch,
+                sha: $sha,
+                committer: {name: $name, email: $email},
+                author: {name: $name, email: $email}
+              }')"
 
       - name: Create Pull Request using GitHub API
         if: steps.update-check.outputs.needs_update == 'true'
