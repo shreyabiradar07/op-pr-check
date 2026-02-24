@@ -255,15 +255,15 @@ jobs:
           COMMIT_MESSAGE="build(deps): update Kruize versions to Autotune ${{ steps.fetch-autotune-version.outputs.kruize_version }} and UI ${{ steps.fetch-ui-version.outputs.ui_version }}"
           
           # Get committer info from the GitHub App token
-          COMMITTER_NAME=$(curl -s -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/user" | jq -r '.name // .login')
-          COMMITTER_EMAIL=$(curl -s -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/user" | jq -r '.email // (.login + "@users.noreply.github.com")')
+          USER_INFO=$(curl -s -H "Authorization: token $GH_TOKEN" "https://api.github.com/user")
+          COMMITTER_NAME=$(echo "$USER_INFO" | jq -r '.name // .login')
+          COMMITTER_EMAIL=$(echo "$USER_INFO" | jq -r '.email // (.login + "@users.noreply.github.com")')
           
-          # Append Signed-off-by line to commit message with proper newlines
+          # Append Signed-off-by line to commit message
           SIGNOFF_LINE="Signed-off-by: ${COMMITTER_NAME} <${COMMITTER_EMAIL}>"
           COMMIT_MESSAGE_WITH_SIGNOFF=$(printf "%s\n\n%s" "$COMMIT_MESSAGE" "$SIGNOFF_LINE")
           
+          # Create commit with author and committer info
           NEW_COMMIT=$(curl -s -X POST -H "Authorization: token $GH_TOKEN" \
             -H "Content-Type: application/json" \
             "https://api.github.com/repos/$REPO/git/commits" \
@@ -271,7 +271,15 @@ jobs:
               --arg msg "$COMMIT_MESSAGE_WITH_SIGNOFF" \
               --arg tree "$NEW_TREE" \
               --arg parent "$BASE_SHA" \
-              '{message: $msg, tree: $tree, parents: [$parent]}')" | jq -r '.sha')
+              --arg name "$COMMITTER_NAME" \
+              --arg email "$COMMITTER_EMAIL" \
+              '{
+                message: $msg,
+                tree: $tree,
+                parents: [$parent],
+                author: {name: $name, email: $email},
+                committer: {name: $name, email: $email}
+              }')" | jq -r '.sha')
           
           # Update branch reference
           curl -s -X PATCH -H "Authorization: token $GH_TOKEN" \
