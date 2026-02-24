@@ -33,20 +33,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Import GPG key and Configure Git
-        id: import-gpg
-        uses: crazy-max/ghaction-import-gpg@v6
-        with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.GPG_PASSPHRASE }}
-          # This automatically runs the 'git config' commands for you correctly
-          git_user_signingkey: true
-          git_commit_gpgsign: true
-          git_tag_gpgsign: true
-          git_config_global: true
-          # Replace these with your actual GPG name and verified email
-          git_committer_name: "Shreya Biradar"
-          git_committer_email: "shbirada@ibm.com"
+      - name: Configure Git with GitHub App identity
+        run: |
+          # Configure git to use GitHub App identity for commits
+          git config --global user.name "kruize-version-sync-bot"
+          git config --global user.email "2856490+kruize-version-sync-bot@users.noreply.github.com"
 
       - name: Install required tools
         run: |
@@ -208,8 +199,9 @@ jobs:
         with:
           token: ${{ steps.generate-token.outputs.token }}
           commit-message: "build(deps): update Kruize versions to Autotune ${{ steps.fetch-autotune-version.outputs.kruize_version }} and UI ${{ steps.fetch-ui-version.outputs.ui_version }}"
-          committer: Shreya Biradar <shbirada@ibm.com>
-          author: Shreya Biradar <shbirada@ibm.com>
+          # Use GitHub App identity for automation commits
+          committer: kruize-sync-version-bot <"2856490+kruize-version-sync-bot@users.noreply.github.com">
+          author: kruize-version-sync-bot <2856490+kruize-version-sync-bot@users.noreply.github.com>
           signoff: true
           title: "build(deps): update Kruize image versions"
           body: |
