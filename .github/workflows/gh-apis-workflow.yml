@@ -255,7 +255,7 @@ jobs:
           # Use GitHub App bot identity for sign-off
           APP_ID="${{ secrets.APP_ID }}"
           BOT_NAME="kruize-versions-sync-bot"
-          BOT_EMAIL="${APP_ID}+${BOT_NAME}@users.noreply.github.com"
+          BOT_EMAIL="${APP_ID}+${BOT_NAME}[bot]@users.noreply.github.com"
           
           # Create commit message with sign-off (using printf to handle newlines)
           COMMIT_MESSAGE=$(printf "build(deps): update Kruize versions to Autotune %s and UI %s\n\nSigned-off-by: %s <%s>" \
