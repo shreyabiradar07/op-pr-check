@@ -159,133 +159,52 @@ jobs:
             echo "needs_ui_update=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Update kruize_images.go and sample YAML
+      - name: Update files, create branch and commit with signoff
         if: steps.update-check.outputs.needs_update == 'true'
-        id: update-files
+        id: update-and-commit
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
         run: |
           KRUIZE_VERSION="${{ steps.fetch-autotune-version.outputs.kruize_version }}"
           UI_VERSION="${{ steps.fetch-ui-version.outputs.ui_version }}"
           NEEDS_AUTOTUNE_UPDATE="${{ steps.update-check.outputs.needs_autotune_update }}"
           NEEDS_UI_UPDATE="${{ steps.update-check.outputs.needs_ui_update }}"
           
+          # Configure git with GitHub App identity
+          APP_ID="${{ secrets.APP_ID }}"
+          COMMITTER_NAME="kruize-version-sync-bot"
+          COMMITTER_EMAIL="${APP_ID}+kruize-version-sync-bot@users.noreply.github.com"
+          
+          git config user.name "${COMMITTER_NAME}"
+          git config user.email "${COMMITTER_EMAIL}"
+          
+          # Create and checkout new branch
+          BRANCH_NAME="automated/gh-api-update-kruize-${{ github.run_number }}"
+          git checkout -b "${BRANCH_NAME}"
+          
           # Update Autotune version if needed
           if [ "$NEEDS_AUTOTUNE_UPDATE" = "true" ]; then
             sed -i "s/defaultAutotuneImageTag = \"[^\"]*\"/defaultAutotuneImageTag = \"$KRUIZE_VERSION\"/" internal/constants/kruize_images.go
             sed -i "s|autotune_image: \"quay.io/kruize/autotune_operator:[^\"]*\"|autotune_image: \"quay.io/kruize/autotune_operator:$KRUIZE_VERSION\"|" config/samples/v1alpha1_kruize.yaml
-            echo "Updated Autotune version to $KRUIZE_VERSION"
           fi
           
           # Update UI version if needed
           if [ "$NEEDS_UI_UPDATE" = "true" ]; then
             sed -i "s/defaultUIImageTag = \"[^\"]*\"/defaultUIImageTag = \"$UI_VERSION\"/" internal/constants/kruize_images.go
             sed -i "s|autotune_ui_image: \"quay.io/kruize/kruize-ui:[^\"]*\"|autotune_ui_image: \"quay.io/kruize/kruize-ui:$UI_VERSION\"|" config/samples/v1alpha1_kruize.yaml
-            echo "Updated UI version to $UI_VERSION"
           fi
-
-          # Get base64 encoded content of updated files
-          KRUIZE_IMAGES_CONTENT=$(base64 -w 0 internal/constants/kruize_images.go)
-          SAMPLE_YAML_CONTENT=$(base64 -w 0 config/samples/v1alpha1_kruize.yaml)
           
-          echo "kruize_images_content=$KRUIZE_IMAGES_CONTENT" >> $GITHUB_OUTPUT
-          echo "sample_yaml_content=$SAMPLE_YAML_CONTENT" >> $GITHUB_OUTPUT
-
-      - name: Create branch and commit using GitHub API
-        if: steps.update-check.outputs.needs_update == 'true'
-        id: create-branch
-        env:
-          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
-        run: |
-          REPO="${{ github.repository }}"
-          BASE_BRANCH="${{ github.ref_name }}"
-          BRANCH_NAME="automated/gh-api-update-kruize-${{ github.run_number }}"
-
-          # Get the SHA of the base branch
-          BASE_SHA=$(curl -s -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/$REPO/git/ref/heads/$BASE_BRANCH" | jq -r '.object.sha')
+          # Stage changes
+          git add internal/constants/kruize_images.go config/samples/v1alpha1_kruize.yaml
           
-          # Create a new branch
-          CREATE_RESPONSE=$(curl -s -X POST -H "Authorization: token $GH_TOKEN" \
-            -H "Content-Type: application/json" \
-            "https://api.github.com/repos/$REPO/git/refs" \
-            -d "{\"ref\":\"refs/heads/$BRANCH_NAME\",\"sha\":\"$BASE_SHA\"}")
+          # Commit with signoff
+          COMMIT_MESSAGE="build(deps): update Kruize versions to Autotune ${KRUIZE_VERSION} and UI ${UI_VERSION}"
+          git commit --signoff -m "${COMMIT_MESSAGE}"
           
-          # Verify branch was created
-          BRANCH_SHA=$(echo "$CREATE_RESPONSE" | jq -r '.object.sha // empty')
-          if [ -z "$BRANCH_SHA" ]; then
-            echo "Error: Failed to create branch"
-            echo "$CREATE_RESPONSE"
-            exit 1
-          fi
+          # Push branch
+          git push origin "${BRANCH_NAME}"
           
           echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
-          echo "base_sha=$BASE_SHA" >> $GITHUB_OUTPUT
-
-      - name: Commit changes using Contents API for verified commits
-        if: steps.update-check.outputs.needs_update == 'true'
-        id: commit-changes
-        env:
-          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
-        run: |
-          REPO="${{ github.repository }}"
-          BRANCH_NAME="${{ steps.create-branch.outputs.branch_name }}"
-          
-          # Create commit message with signoff
-          COMMIT_MESSAGE="build(deps): update Kruize versions to Autotune ${{ steps.fetch-autotune-version.outputs.kruize_version }} and UI ${{ steps.fetch-ui-version.outputs.ui_version }}"
-          
-          APP_ID="${{ secrets.APP_ID }}"
-          COMMITTER_NAME="kruize-version-sync-bot[bot]"
-          COMMITTER_EMAIL="${APP_ID}+kruize-version-sync-bot[bot]@users.noreply.github.com"
-          
-          SIGNOFF_LINE="Signed-off-by: ${COMMITTER_NAME} <${COMMITTER_EMAIL}>"
-          COMMIT_MESSAGE_WITH_SIGNOFF=$(printf "%s\n\n%s" "$COMMIT_MESSAGE" "$SIGNOFF_LINE")
-          
-          # Get current SHA of kruize_images.go
-          KRUIZE_IMAGES_SHA=$(curl -s -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/$REPO/contents/internal/constants/kruize_images.go?ref=$BRANCH_NAME" | jq -r '.sha')
-          
-          # Update kruize_images.go using Contents API (creates verified commit)
-          curl -s -X PUT -H "Authorization: token $GH_TOKEN" \
-            -H "Content-Type: application/json" \
-            "https://api.github.com/repos/$REPO/contents/internal/constants/kruize_images.go" \
-            -d "$(jq -n \
-              --arg msg "$COMMIT_MESSAGE_WITH_SIGNOFF" \
-              --arg content "${{ steps.update-files.outputs.kruize_images_content }}" \
-              --arg branch "$BRANCH_NAME" \
-              --arg sha "$KRUIZE_IMAGES_SHA" \
-              --arg name "$COMMITTER_NAME" \
-              --arg email "$COMMITTER_EMAIL" \
-              '{
-                message: $msg,
-                content: $content,
-                branch: $branch,
-                sha: $sha,
-                committer: {name: $name, email: $email},
-                author: {name: $name, email: $email}
-              }')"
-          
-          # Get current SHA of v1alpha1_kruize.yaml
-          SAMPLE_YAML_SHA=$(curl -s -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/$REPO/contents/config/samples/v1alpha1_kruize.yaml?ref=$BRANCH_NAME" | jq -r '.sha')
-          
-          # Update v1alpha1_kruize.yaml using Contents API (creates verified commit)
-          curl -s -X PUT -H "Authorization: token $GH_TOKEN" \
-            -H "Content-Type: application/json" \
-            "https://api.github.com/repos/$REPO/contents/config/samples/v1alpha1_kruize.yaml" \
-            -d "$(jq -n \
-              --arg msg "$COMMIT_MESSAGE_WITH_SIGNOFF" \
-              --arg content "${{ steps.update-files.outputs.sample_yaml_content }}" \
-              --arg branch "$BRANCH_NAME" \
-              --arg sha "$SAMPLE_YAML_SHA" \
-              --arg name "$COMMITTER_NAME" \
-              --arg email "$COMMITTER_EMAIL" \
-              '{
-                message: $msg,
-                content: $content,
-                branch: $branch,
-                sha: $sha,
-                committer: {name: $name, email: $email},
-                author: {name: $name, email: $email}
-              }')"
 
       - name: Create Pull Request using GitHub API
         if: steps.update-check.outputs.needs_update == 'true'
@@ -293,7 +212,7 @@ jobs:
           GH_TOKEN: ${{ steps.generate-token.outputs.token }}
         run: |
           REPO="${{ github.repository }}"
-          BRANCH_NAME="${{ steps.create-branch.outputs.branch_name }}"
+          BRANCH_NAME="${{ steps.update-and-commit.outputs.branch_name }}"
           BASE_BRANCH="${{ github.ref_name }}"
           
           PR_BODY="## Automated Version Update
