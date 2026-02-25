@@ -251,17 +251,28 @@ jobs:
               ]
             }" | jq -r '.sha')
           
-          # Create commit
-          COMMIT_MESSAGE="build(deps): update Kruize versions to Autotune ${{ steps.fetch-autotune-version.outputs.kruize_version }} and UI ${{ steps.fetch-ui-version.outputs.ui_version }}"
+          # Create commit with sign-off
+          # Use GitHub App bot identity for sign-off
+          APP_ID="${{ secrets.APP_ID }}"
+          BOT_NAME="kruize-versions-sync-bot"
+          BOT_EMAIL="${APP_ID}+${BOT_NAME}@users.noreply.github.com"
           
+          # Create commit message with sign-off (using printf to handle newlines)
+          COMMIT_MESSAGE=$(printf "build(deps): update Kruize versions to Autotune %s and UI %s\n\nSigned-off-by: %s <%s>" \
+            "${{ steps.fetch-autotune-version.outputs.kruize_version }}" \
+            "${{ steps.fetch-ui-version.outputs.ui_version }}" \
+            "${BOT_NAME}" \
+            "${BOT_EMAIL}")
+          
+          # Create the commit with properly escaped message
           NEW_COMMIT=$(curl -s -X POST -H "Authorization: token $GH_TOKEN" \
             -H "Content-Type: application/json" \
             "https://api.github.com/repos/$REPO/git/commits" \
-            -d "{
-              \"message\":\"$COMMIT_MESSAGE\",
-              \"tree\":\"$NEW_TREE\",
-              \"parents\":[\"$BASE_SHA\"]
-            }" | jq -r '.sha')
+            -d "$(jq -n \
+              --arg msg "$COMMIT_MESSAGE" \
+              --arg tree "$NEW_TREE" \
+              --arg parent "$BASE_SHA" \
+              '{message: $msg, tree: $tree, parents: [$parent]}')" | jq -r '.sha')
           
           # Update branch reference
           curl -s -X PATCH -H "Authorization: token $GH_TOKEN" \
