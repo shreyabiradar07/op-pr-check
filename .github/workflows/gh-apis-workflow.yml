@@ -170,10 +170,10 @@ jobs:
           NEEDS_AUTOTUNE_UPDATE="${{ steps.update-check.outputs.needs_autotune_update }}"
           NEEDS_UI_UPDATE="${{ steps.update-check.outputs.needs_ui_update }}"
           
-          # Configure git with GitHub App identity
+          # Configure git with GitHub App identity using [bot] suffix
           APP_ID="${{ secrets.APP_ID }}"
-          COMMITTER_NAME="kruize-version-sync-bot"
-          COMMITTER_EMAIL="${APP_ID}+kruize-version-sync-bot@users.noreply.github.com"
+          COMMITTER_NAME="kruize-version-sync-bot[bot]"
+          COMMITTER_EMAIL="${APP_ID}+kruize-version-sync-bot[bot]@users.noreply.github.com"
           
           git config user.name "${COMMITTER_NAME}"
           git config user.email "${COMMITTER_EMAIL}"
