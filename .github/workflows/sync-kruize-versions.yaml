@@ -10,6 +10,12 @@ on:
   #   # Run weekly on Monday at 00:00 UTC
   #   - cron: '0 0 * * 1'
   workflow_dispatch: # Allow manual trigger
+    inputs:
+      base_branch:
+        description: 'Target branch for the pull request'
+        required: false
+        default: 'mvp_demo'
+        type: string
 
 permissions:
   contents: write
