@@ -16,7 +16,7 @@ jobs:
   build-and-test-macos:
     name: Build and Test Operator on macOS
     runs-on: macos-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -34,33 +34,6 @@ jobs:
           go mod download
           go mod verify
 
-      - name: Install Docker (Colima)
-        run: |
-          echo "Installing Docker and Colima for macOS..."
-          brew install docker colima
-          
-          # Start Colima with default settings (VZ driver with arch specification)
-          # macOS runners have 3 CPUs and 14GB RAM available
-          echo "Starting Colima..."
-          colima start --cpu 2 --memory 6 --disk 10 --arch aarch64 --vm-type=vz --mount-type=virtiofs --network-address
-          
-          # Verify Docker is working
-          echo "Verifying Docker installation..."
-          docker version
-          docker info
-          
-          echo "Docker is ready via Colima"
-
-      - name: Install kubectl
-        run: |
-          brew install kubectl
-          kubectl version --client
-
-      - name: Install Kind
-        run: |
-          brew install kind
-          kind version
-
       - name: Create Kind config
         run: |
           cat <<EOF > /tmp/kind-config.yaml
@@ -75,9 +48,11 @@ jobs:
           EOF
 
       - name: Set up Kind cluster
-        run: |
-          kind create cluster --name kruize-test-cluster --config /tmp/kind-config.yaml --wait 120s
-          kubectl cluster-info --context kind-kruize-test-cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: kruize-test-cluster
+          wait: 120s
+          config: /tmp/kind-config.yaml
 
       - name: Verify Kind cluster
         run: |
