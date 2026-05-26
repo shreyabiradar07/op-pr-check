@@ -54,19 +54,6 @@ IMG ?= $(IMAGE_TAG_BASE):$(VERSION)
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.29.0
 
-# Host platform detection for downloading platform-specific binaries.
-HOST_OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
-HOST_ARCH_RAW := $(shell uname -m)
-ifeq ($(HOST_ARCH_RAW),x86_64)
-HOST_ARCH := amd64
-else ifeq ($(HOST_ARCH_RAW),aarch64)
-HOST_ARCH := arm64
-else ifeq ($(HOST_ARCH_RAW),arm64)
-HOST_ARCH := arm64
-else
-HOST_ARCH := $(HOST_ARCH_RAW)
-endif
-
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -253,17 +240,14 @@ $(LOCALBIN):
 
 ## Tool Binaries
 KUBECTL ?= kubectl
-KUSTOMIZE ?= $(LOCALBIN)/kustomize-$(KUSTOMIZE_VERSION)-$(HOST_OS)-$(HOST_ARCH)
-CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen-$(CONTROLLER_TOOLS_VERSION)-$(HOST_OS)-$(HOST_ARCH)
-ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)-$(HOST_OS)-$(HOST_ARCH)
-GOLANGCI_LINT = $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)-$(HOST_OS)-$(HOST_ARCH)
-# OPERATOR_SDK is managed under $(LOCALBIN) and may be (re)downloaded by `make operator-sdk`.
-# Overriding OPERATOR_SDK to a system-wide path can result in that path being overwritten.
-OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk-$(OPERATOR_SDK_VERSION)-$(HOST_OS)-$(HOST_ARCH)
+KUSTOMIZE ?= $(LOCALBIN)/kustomize-$(KUSTOMIZE_VERSION)
+CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen-$(CONTROLLER_TOOLS_VERSION)
+ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
+GOLANGCI_LINT = $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.3.0
-CONTROLLER_TOOLS_VERSION ?= v0.17.3
+CONTROLLER_TOOLS_VERSION ?= v0.17.1
 ENVTEST_VERSION ?= release-0.17
 GOLANGCI_LINT_VERSION ?= v1.57.2
 
@@ -288,39 +272,54 @@ $(GOLANGCI_LINT): $(LOCALBIN)
 	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,${GOLANGCI_LINT_VERSION})
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
-# $1 - target path with name of binary (ideally with version-os-arch)
+# $1 - target path with name of binary (ideally with version)
 # $2 - package url which can be installed
 # $3 - specific version of package
 define go-install-tool
-@[ -f $(1) ] || { \
-set -e; \
-package=$(2)@$(3) ;\
-echo "Downloading $${package} for $(HOST_OS)/$(HOST_ARCH)" ;\
-GOBIN=$(LOCALBIN) go install $${package} ;\
-binary_name=$$(basename $(2)) ;\
-[ -f "$(LOCALBIN)/$${binary_name}" ] && mv "$(LOCALBIN)/$${binary_name}" $(1) || true ;\
-}
+@if [ -f "$(1)" ]; then \
+        if ! "$(1)" --version >/dev/null 2>&1; then \
+                echo "Existing binary $(1) is not executable on this platform, re-downloading.." ;\
+                rm -f "$(1)" ;\
+        fi ;\
+fi ;\
+if [ ! -f "$(1)" ]; then \
+        set -e; \
+        package=$(2)@$(3) ;\
+        echo "Downloading $${package}" ;\
+        GOBIN=$(LOCALBIN) go install $${package} ;\
+        mv "$$(echo "$(1)" | sed "s/-$(3)$$//")" "$(1)" ;\
+fi
 endef
 
-.PHONY: operator-sdk
-operator-sdk: $(OPERATOR_SDK) ## Download operator-sdk locally if necessary.
-
-# Only define the download rule if OPERATOR_SDK is under LOCALBIN to avoid overwriting system-wide installations
-ifeq ($(findstring $(LOCALBIN),$(OPERATOR_SDK)),$(LOCALBIN))
-$(OPERATOR_SDK): $(LOCALBIN)
-	@echo "Downloading operator-sdk $(OPERATOR_SDK_VERSION) for $(HOST_OS)/$(HOST_ARCH)..."
-	@curl -sSLo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$(HOST_OS)_$(HOST_ARCH)
-	@chmod +x $(OPERATOR_SDK)
-	@echo "operator-sdk downloaded to $(OPERATOR_SDK)"
+# Check if operator-sdk exists system-wide first, otherwise use local bin
+ifeq (,$(shell which operator-sdk 2>/dev/null))
+OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
 else
-$(OPERATOR_SDK):
-	@echo "Using system operator-sdk at: $(OPERATOR_SDK)"
-	@if [ ! -f "$(OPERATOR_SDK)" ]; then \
-		echo "Error: OPERATOR_SDK path '$(OPERATOR_SDK)' does not exist."; \
-		echo "Please ensure the binary exists at the specified path or use the default location."; \
-		exit 1; \
-	fi
+OPERATOR_SDK ?= $(shell which operator-sdk)
 endif
+
+.PHONY: operator-sdk
+operator-sdk: ## Download operator-sdk locally if necessary.
+	@if [ ! -f $(OPERATOR_SDK) ]; then \
+		if [ "$(OPERATOR_SDK)" = "$(LOCALBIN)/operator-sdk" ]; then \
+			echo "Downloading operator-sdk $(OPERATOR_SDK_VERSION)..." ;\
+			mkdir -p $(LOCALBIN) ;\
+			OS=$$(uname -s | tr '[:upper:]' '[:lower:]') && ARCH=$$(uname -m) ;\
+			case $$ARCH in \
+				x86_64) ARCH=amd64 ;; \
+				aarch64|arm64) ARCH=arm64 ;; \
+			esac ;\
+			curl -sSLo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$${OS}_$${ARCH} ;\
+			chmod +x $(OPERATOR_SDK) ;\
+			echo "operator-sdk downloaded to $(OPERATOR_SDK)" ;\
+		else \
+			echo "Error: Custom OPERATOR_SDK path '$(OPERATOR_SDK)' does not exist." ;\
+			echo "Please ensure the binary exists at the specified path or use the default location." ;\
+			exit 1 ;\
+		fi ;\
+	else \
+		echo "Using operator-sdk: $(OPERATOR_SDK)" ;\
+	fi
 
 .PHONY: bundle
 bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metadata, then validate generated files.
