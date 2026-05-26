@@ -36,13 +36,13 @@ jobs:
 
       - name: Install Docker (Colima)
         run: |
-          echo "Installing Docker, QEMU, and Colima for macOS..."
-          brew install docker qemu colima
+          echo "Installing Docker and Colima for macOS..."
+          brew install docker colima
           
-          # Start Colima with QEMU driver for better CI compatibility
+          # Start Colima with default settings (VZ driver with arch specification)
           # macOS runners have 3 CPUs and 14GB RAM available
-          echo "Starting Colima with QEMU driver..."
-          colima start --cpu 2 --memory 6 --disk 10 --vm-type=qemu --mount-type=sshfs
+          echo "Starting Colima..."
+          colima start --cpu 2 --memory 6 --disk 10 --arch aarch64 --vm-type=vz --mount-type=virtiofs --network-address
           
           # Verify Docker is working
           echo "Verifying Docker installation..."
