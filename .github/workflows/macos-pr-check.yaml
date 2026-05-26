@@ -34,54 +34,22 @@ jobs:
           go mod download
           go mod verify
 
-      - name: Install Docker Desktop
+      - name: Install Docker (Colima)
         run: |
-          echo "Installing Docker Desktop for macOS..."
-          brew install --cask docker
+          echo "Installing Docker and Colima for macOS..."
+          brew install docker colima
           
-          # Start Docker Desktop using full path
-          echo "Starting Docker Desktop..."
-          sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended &
+          # Start Colima with conservative resources for GitHub Actions runner
+          # macOS runners have 3 CPUs and 14GB RAM available
+          echo "Starting Colima..."
+          colima start --cpu 2 --memory 4 --disk 10
           
-          # Wait for Docker socket to be available
-          echo "Waiting for Docker socket..."
-          TIMEOUT=300
-          ELAPSED=0
-          while [ ! -S /var/run/docker.sock ]; do
-            if [ $ELAPSED -ge $TIMEOUT ]; then
-              echo "Error: Docker socket not available within ${TIMEOUT} seconds"
-              echo "Checking Docker processes:"
-              ps aux | grep -i docker || true
-              echo "Checking Docker socket:"
-              ls -la /var/run/docker.sock 2>&1 || echo "Socket does not exist"
-              exit 1
-            fi
-            echo "Waiting for Docker socket... (${ELAPSED}s/${TIMEOUT}s)"
-            sleep 5
-            ELAPSED=$((ELAPSED + 5))
-          done
-          
-          # Wait for Docker daemon to be ready
-          echo "Waiting for Docker daemon to be ready..."
-          TIMEOUT=300
-          ELAPSED=0
-          while ! docker info > /dev/null 2>&1; do
-            if [ $ELAPSED -ge $TIMEOUT ]; then
-              echo "Error: Docker daemon failed to start within ${TIMEOUT} seconds"
-              echo "Docker info output:"
-              docker info 2>&1 || true
-              echo "Docker processes:"
-              ps aux | grep -i docker || true
-              exit 1
-            fi
-            echo "Waiting for Docker daemon... (${ELAPSED}s/${TIMEOUT}s)"
-            sleep 5
-            ELAPSED=$((ELAPSED + 5))
-          done
-          
-          echo "Docker is ready"
+          # Verify Docker is working
+          echo "Verifying Docker installation..."
           docker version
           docker info
+          
+          echo "Docker is ready via Colima"
 
       - name: Install kubectl
         run: |
