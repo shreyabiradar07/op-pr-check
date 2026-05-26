@@ -36,8 +36,8 @@ jobs:
 
       - name: Install Docker (Colima)
         run: |
-          echo "Installing Docker and Colima for macOS..."
-          brew install docker colima
+          echo "Installing Docker, QEMU, and Colima for macOS..."
+          brew install docker qemu colima
           
           # Start Colima with QEMU driver for better CI compatibility
           # macOS runners have 3 CPUs and 14GB RAM available
