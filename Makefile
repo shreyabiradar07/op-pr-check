@@ -1,9 +1,9 @@
 # VERSION defines the project version for the bundle.
 # Update this value when you upgrade the version of your project.
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
-# - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.4)
-# - use environment variables to overwrite this value (e.g export VERSION=0.0.4)
-VERSION ?= 0.0.4
+# - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.5)
+# - use environment variables to overwrite this value (e.g export VERSION=0.0.5)
+VERSION ?= 0.0.6
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "candidate,fast,stable")
@@ -53,6 +53,19 @@ OPERATOR_SDK_VERSION ?= v1.37.0
 IMG ?= $(IMAGE_TAG_BASE):$(VERSION)
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.29.0
+
+# Host platform detection for downloading platform-specific binaries.
+HOST_OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
+HOST_ARCH_RAW := $(shell uname -m)
+ifeq ($(HOST_ARCH_RAW),x86_64)
+HOST_ARCH := amd64
+else ifeq ($(HOST_ARCH_RAW),aarch64)
+HOST_ARCH := arm64
+else ifeq ($(HOST_ARCH_RAW),arm64)
+HOST_ARCH := arm64
+else
+HOST_ARCH := $(HOST_ARCH_RAW)
+endif
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -240,14 +253,17 @@ $(LOCALBIN):
 
 ## Tool Binaries
 KUBECTL ?= kubectl
-KUSTOMIZE ?= $(LOCALBIN)/kustomize-$(KUSTOMIZE_VERSION)
-CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen-$(CONTROLLER_TOOLS_VERSION)
-ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
-GOLANGCI_LINT = $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
+KUSTOMIZE ?= $(LOCALBIN)/kustomize-$(KUSTOMIZE_VERSION)-$(HOST_OS)-$(HOST_ARCH)
+CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen-$(CONTROLLER_TOOLS_VERSION)-$(HOST_OS)-$(HOST_ARCH)
+ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)-$(HOST_OS)-$(HOST_ARCH)
+GOLANGCI_LINT = $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)-$(HOST_OS)-$(HOST_ARCH)
+# OPERATOR_SDK is managed under $(LOCALBIN) and may be (re)downloaded by `make operator-sdk`.
+# Overriding OPERATOR_SDK to a system-wide path can result in that path being overwritten.
+OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk-$(OPERATOR_SDK_VERSION)-$(HOST_OS)-$(HOST_ARCH)
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.3.0
-CONTROLLER_TOOLS_VERSION ?= v0.14.0
+CONTROLLER_TOOLS_VERSION ?= v0.17.3
 ENVTEST_VERSION ?= release-0.17
 GOLANGCI_LINT_VERSION ?= v1.57.2
 
@@ -272,34 +288,38 @@ $(GOLANGCI_LINT): $(LOCALBIN)
 	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,${GOLANGCI_LINT_VERSION})
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
-# $1 - target path with name of binary (ideally with version)
+# $1 - target path with name of binary (ideally with version-os-arch)
 # $2 - package url which can be installed
 # $3 - specific version of package
 define go-install-tool
 @[ -f $(1) ] || { \
 set -e; \
 package=$(2)@$(3) ;\
-echo "Downloading $${package}" ;\
+echo "Downloading $${package} for $(HOST_OS)/$(HOST_ARCH)" ;\
 GOBIN=$(LOCALBIN) go install $${package} ;\
-mv "$$(echo "$(1)" | sed "s/-$(3)$$//")" $(1) ;\
+binary_name=$$(basename $(2)) ;\
+[ -f "$(LOCALBIN)/$${binary_name}" ] && mv "$(LOCALBIN)/$${binary_name}" $(1) || true ;\
 }
 endef
 
 .PHONY: operator-sdk
-OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
-operator-sdk: ## Download operator-sdk locally if necessary.
-ifeq (,$(wildcard $(OPERATOR_SDK)))
-ifeq (, $(shell which operator-sdk 2>/dev/null))
-	@{ \
-	set -e ;\
-	mkdir -p $(dir $(OPERATOR_SDK)) ;\
-	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -sSLo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$${OS}_$${ARCH} ;\
-	chmod +x $(OPERATOR_SDK) ;\
-	}
+operator-sdk: $(OPERATOR_SDK) ## Download operator-sdk locally if necessary.
+
+# Only define the download rule if OPERATOR_SDK is under LOCALBIN to avoid overwriting system-wide installations
+ifeq ($(findstring $(LOCALBIN),$(OPERATOR_SDK)),$(LOCALBIN))
+$(OPERATOR_SDK): $(LOCALBIN)
+	@echo "Downloading operator-sdk $(OPERATOR_SDK_VERSION) for $(HOST_OS)/$(HOST_ARCH)..."
+	@curl -sSLo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$(HOST_OS)_$(HOST_ARCH)
+	@chmod +x $(OPERATOR_SDK)
+	@echo "operator-sdk downloaded to $(OPERATOR_SDK)"
 else
-OPERATOR_SDK = $(shell which operator-sdk)
-endif
+$(OPERATOR_SDK):
+	@echo "Using system operator-sdk at: $(OPERATOR_SDK)"
+	@if [ ! -f "$(OPERATOR_SDK)" ]; then \
+		echo "Error: OPERATOR_SDK path '$(OPERATOR_SDK)' does not exist."; \
+		echo "Please ensure the binary exists at the specified path or use the default location."; \
+		exit 1; \
+	fi
 endif
 
 .PHONY: bundle
