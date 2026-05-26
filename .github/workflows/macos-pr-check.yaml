@@ -39,10 +39,10 @@ jobs:
           echo "Installing Docker and Colima for macOS..."
           brew install docker colima
           
-          # Start Colima with conservative resources for GitHub Actions runner
+          # Start Colima with QEMU driver for better CI compatibility
           # macOS runners have 3 CPUs and 14GB RAM available
-          echo "Starting Colima..."
-          colima start --cpu 2 --memory 4 --disk 10
+          echo "Starting Colima with QEMU driver..."
+          colima start --cpu 2 --memory 6 --disk 10 --vm-type=qemu --mount-type=sshfs
           
           # Verify Docker is working
           echo "Verifying Docker installation..."
