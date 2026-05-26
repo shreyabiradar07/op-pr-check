@@ -34,18 +34,34 @@ jobs:
           go mod download
           go mod verify
 
-      - name: Install Docker and Colima
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install Colima
         run: |
-          echo "Installing Docker and Colima..."
-          brew install docker colima
+          brew install colima
+
+      - name: Start Colima
+        run: |
+          # Start Colima with explicit configuration to avoid VZ issues
+          colima start \
+            --cpu 2 \
+            --memory 4 \
+            --disk 20 \
+            --vm-type vz \
+            --vz-rosetta \
+            --mount-type virtiofs \
+            --network-address || \
+          colima start \
+            --cpu 2 \
+            --memory 4 \
+            --disk 20
           
-          echo "Starting Colima with minimal configuration..."
-          # Use default settings - let Colima choose the best driver
-          colima start --cpu 2 --memory 4
+          # Wait for Docker to be ready
+          timeout 60 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
           
-          echo "Verifying Docker..."
+          echo "Docker is ready"
           docker version
-          docker info
 
       - name: Install kubectl
         run: |
