@@ -39,13 +39,22 @@ jobs:
           echo "Installing Docker Desktop for macOS..."
           brew install --cask docker
           
-          # Start Docker Desktop
-          open -a Docker
+          # Start Docker Desktop using full path
+          echo "Starting Docker Desktop..."
+          open -a /Applications/Docker.app
           
-          # Wait for Docker to be ready
+          # Wait for Docker to be ready with timeout
           echo "Waiting for Docker to start..."
+          TIMEOUT=120
+          ELAPSED=0
           while ! docker info > /dev/null 2>&1; do
+            if [ $ELAPSED -ge $TIMEOUT ]; then
+              echo "Error: Docker failed to start within ${TIMEOUT} seconds"
+              exit 1
+            fi
+            echo "Waiting for Docker daemon... (${ELAPSED}s/${TIMEOUT}s)"
             sleep 5
+            ELAPSED=$((ELAPSED + 5))
           done
           echo "Docker is ready"
           docker version
