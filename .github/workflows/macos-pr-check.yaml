@@ -34,6 +34,29 @@ jobs:
           go mod download
           go mod verify
 
+      - name: Install Docker and Colima
+        run: |
+          echo "Installing Docker and Colima..."
+          brew install docker colima
+          
+          echo "Starting Colima with minimal configuration..."
+          # Use default settings - let Colima choose the best driver
+          colima start --cpu 2 --memory 4
+          
+          echo "Verifying Docker..."
+          docker version
+          docker info
+
+      - name: Install kubectl
+        run: |
+          brew install kubectl
+          kubectl version --client
+
+      - name: Install Kind
+        run: |
+          brew install kind
+          kind version
+
       - name: Create Kind config
         run: |
           cat <<EOF > /tmp/kind-config.yaml
@@ -48,11 +71,9 @@ jobs:
           EOF
 
       - name: Set up Kind cluster
-        uses: helm/kind-action@v1
-        with:
-          cluster_name: kruize-test-cluster
-          wait: 120s
-          config: /tmp/kind-config.yaml
+        run: |
+          kind create cluster --name kruize-test-cluster --config /tmp/kind-config.yaml --wait 120s
+          kubectl cluster-info --context kind-kruize-test-cluster
 
       - name: Verify Kind cluster
         run: |
